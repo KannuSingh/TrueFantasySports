@@ -1,8 +1,7 @@
 <p align="center">
     <h1 align="center">
-        
         True Fantasy Sport
-    </h1>
+ 
 </p>
 
 | The repository is divided into three components: [web app] [relay] and [contracts]. The app for playing fantasy sports anonymously without revealing their original identity using zero knowledge and semaphore Identity. |
