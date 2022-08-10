@@ -39,7 +39,7 @@ function Header() {
     const { isOpen, onOpen, onClose } = useDisclosure()
     const [_password, setPassword] = useState("")
     const [_sudoName, setSudoName] = useState("")
-    const [_name, setName] = useState("Karandeep Singh")
+    const [_name, setName] = useState("")
     const accounts = useSelector(selectAccount)
     const dispatch = useAppDispatch()
 

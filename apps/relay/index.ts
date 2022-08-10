@@ -144,7 +144,7 @@ app.post("/add-member", async (req, res) => {
 
 app.post("/create-contest", async (req, res) => {
     console.log("Request : Create Contest ")
-    const { contestName, identityCommitment, contestEntryFee, teamSubmissionDeadline, matchId } = req.body
+    const { contestName, identityCommitment, contestCompletionTime, contestEntryFee, teamSubmissionDeadline, matchId } = req.body
     console.log("Contest name : " + contestName)
     console.log("Identity Commitment : " + identityCommitment)
     try {
@@ -152,6 +152,7 @@ app.post("/create-contest", async (req, res) => {
             contestName,
             matchId,
             teamSubmissionDeadline,
+            contestCompletionTime,
             contestEntryFee,
             identityCommitment
         )
