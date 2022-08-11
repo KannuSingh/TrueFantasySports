@@ -89,6 +89,8 @@ interface FantasyScoreCard {
 function Contest() {
     let params = useParams()
     const _accounts = useSelector(selectAccount)
+    const [log, setLog] = useState("")
+    const [_submitted, set_Submitted] = useState(false)
     let squad: Squad = getSquad(parseInt(params.matchId!, 10))!
     let match: Match = getMatch(parseInt(params.matchId!, 10))!
     const _identityString: string = useSelector(selectUserIdentity)
@@ -102,6 +104,10 @@ function Contest() {
     const [_viceCaptainIndex, setViceCaptainIndex] = useState(-1)
     const _hostSquadLength = squad.host.length
     const [_participants, setParticipants] = useState<any[]>([])
+    const [contestEndTime, setContestEndTime] = useState(0)
+    const [teamSubmissionEndTime, setTeamSubmissionEndTime] = useState(0)
+    const [_yourScore, setYourScore] = useState(0)
+    const [_highestScore, setHighestScore] = useState(0)
     let fantasyScorecard: FantasyScoreCard = getFantasyScorecard(parseInt(params.matchId!, 10))!
     const dispatch = useAppDispatch()
     const savedTeam = useSelector((state) => {
@@ -157,12 +163,15 @@ function Contest() {
                 contract.filters.ContestCreated(utils.hexlify(BigInt(_contestId!)))
             )
             if (contests.length == 1) {
+                setContestEndTime(parseInt(contests[0].args![5].toString()))
+                setTeamSubmissionEndTime(parseInt(contests[0].args![4].toString()))
                 return {
                     contestGroupId: contests[0].args![0].toString(),
                     contestName: parseBytes32String(contests[0].args![1]),
                     matchId: contests[0].args![2].toString(),
                     contestFee: contests[0].args![3].toString(),
-                    contestTeamSubmissionEndTime: contests[0].args![4].toString()
+                    contestTeamSubmissionEndTime: contests[0].args![4].toString(),
+                    contestEndTime: contests[0].args![5].toString()
                 }
             }
         }
@@ -176,6 +185,9 @@ function Contest() {
                 const contestDetails = await getContestDetails()
                 if (contestDetails != undefined) {
                     setContestDetails(contestDetails)
+                    getHighestScore(contestDetails.contestGroupId)
+                    getYourTeamScore(contestDetails.contestGroupId)
+                    console.log(contestDetails)
                     setLatestBlockTimeStamp(await latestBlockTimestamp())
                 }
                 const participants = await getParticipantList()
@@ -207,6 +219,25 @@ function Contest() {
         // const ethereum = await detectEthereumProvider()
         // console.log(log)
         //dispatch(requestAccounts(ethereum));
+    }
+    const getHighestScore = async (contestId) => {
+        console.log("Getting highest score of contest")
+        const ethereum = (await detectEthereumProvider()) as any
+        const contract = getTrueFantasySportContract(ethereum)
+        const score = await contract.getHighestScore(contestId)
+        setHighestScore(score.toNumber())
+        console.log(score)
+    }
+    const getYourTeamScore = async (contestId) => {
+        const participantIdentity = new Identity(_identityString)
+        const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
+
+        console.log("Getting your score of contest")
+        const ethereum = (await detectEthereumProvider()) as any
+        const contract = getTrueFantasySportContract(ethereum)
+        const score = await contract.getYourScore(contestId, initialNullifierHash)
+        console.log(score.toNumber())
+        setYourScore(score.toNumber())
     }
     const handleTeamCreation = () => {
         console.log("handleTeamCreation")
@@ -254,6 +285,8 @@ function Contest() {
             }
             dispatch(addTeamAndTeamHash(contestState))
             onClose()
+        } else {
+            window.alert("Please choose a total of 11 players")
         }
     }
     const handlePlayerSelection = (playerOf: string, index: number) => {
@@ -346,7 +379,8 @@ function Contest() {
                 })
             })
             if (status === 200) {
-                console.log("Successfully posted team.")
+                set_Submitted(true)
+                window.alert("Successfully posted team.")
                 onClose()
             } else {
                 console.log("Some error occurred, please try again!")
@@ -370,9 +404,9 @@ function Contest() {
                 })
             })
             if (status === 200) {
-                console.log("Successfully added member.")
+                window.alert("Successfully joined the contest")
             } else {
-                console.log("Some error occurred, please try again!")
+                window.alert("Some error occurred, please try again!")
             }
         } catch (e) {
             console.log(e)
@@ -494,44 +528,85 @@ function Contest() {
     }
     return (
         <Flex align="center" justify="center">
-            <VStack w="60%" spacing={3}>
+            <VStack w="70%" spacing={3}>
                 <Heading as="h3" size="lg">
                     {match.title}
                 </Heading>
                 <HStack>
-                    <VStack w="100%" spacing={2} alignItems="flex-start">
-                        <Text>Host : {match.host}</Text>
-                        <Text>Opponent : {match.opponent}</Text>
-                        <Text>Date : {match.matchDate}</Text>
-                    </VStack>
-                    <VStack w="80%" spacing={2} alignItems="flex-start">
-                        <Text>Contest Name : {_contestDetails ? _contestDetails.contestName : ""}</Text>
-                        <Text>Contest Entry Fee : {_contestDetails ? _contestDetails.contestFee : ""}</Text>
-                        <Text>#Participants : {_participants.length}</Text>
-                    </VStack>
-                    <VStack w="80%" spacing={2} alignItems="flex-start">
-                        <Text>
-                            Contest Team Submission Ends Time :
-                            {_contestDetails
-                                ? (
-                                      (parseInt(_contestDetails.contestTeamSubmissionEndTime) - _latestBlockTimestamp) /
-                                      60
-                                  ).toFixed(2)
-                                : ""}
-                        </Text>
-                        <Button
-                            isDisabled={_loading || _participants.includes(_identityCommitment)}
-                            onClick={handleContestJoin}
-                        >
-                            {_participants.includes(_identityCommitment) ? "Already Joined" : "Join Contest"}
-                        </Button>
-                    </VStack>
+                    <Table>
+                        <Tbody>
+                            <Tr>
+                                <Td>
+                                    <Text>Host : {match.host}</Text>
+                                </Td>
+                                <Td>
+                                    <Text>Opponent : {match.opponent}</Text>
+                                </Td>
+                                <Td>
+                                    <Text>Date : {match.matchDate}</Text>
+                                </Td>
+                            </Tr>
+                            <Tr>
+                                <Td>
+                                    <Text>Contest Name : {_contestDetails ? _contestDetails.contestName : ""}</Text>
+                                </Td>
+                                <Td>
+                                    <Text>Contest Entry Fee : {_contestDetails ? _contestDetails.contestFee : ""}</Text>
+                                </Td>
+                                <Td>
+                                    <Text>Participants Count: {_participants.length}</Text>
+                                </Td>
+                            </Tr>
+                            <Tr>
+                                <Td>
+                                    <Text>
+                                        Contest End Time :
+                                        {_contestDetails && (contestEndTime - _latestBlockTimestamp) / 60 > 0
+                                            ? ((contestEndTime - _latestBlockTimestamp) / 60).toFixed(2)
+                                            : 0}
+                                    </Text>
+                                </Td>
+                                <Td>
+                                    <Text>
+                                        Team Submission Ends Time :
+                                        {_contestDetails &&
+                                        parseInt(
+                                            (
+                                                (parseInt(_contestDetails.contestTeamSubmissionEndTime) -
+                                                    _latestBlockTimestamp) /
+                                                60
+                                            ).toFixed(2)
+                                        ) > 0
+                                            ? (
+                                                  (parseInt(_contestDetails.contestTeamSubmissionEndTime) -
+                                                      _latestBlockTimestamp) /
+                                                  60
+                                              ).toFixed(2)
+                                            : 0}
+                                    </Text>
+                                </Td>
+                            </Tr>
+                            <Tr>
+                                <Td>
+                                    <Text>Highest Score : {_highestScore}</Text>
+                                </Td>
+                                <Td>
+                                    <Text>Your Score : {_yourScore}</Text>
+                                </Td>
+                            </Tr>
+                        </Tbody>
+                    </Table>
                 </HStack>
+                <Button
+                    isDisabled={_loading || _participants.includes(_identityCommitment)}
+                    onClick={handleContestJoin}
+                >
+                    {_participants.includes(_identityCommitment) ? "Already Joined" : "Join Contest"}
+                </Button>
                 <Tabs w="100%">
                     <TabList justifyContent="space-around">
                         <Tab flexGrow="1">My Team</Tab>
                         <Tab flexGrow="1">Participants</Tab>
-                        <Tab flexGrow="1">Leader Board</Tab>
                     </TabList>
 
                     <TabPanels>
@@ -572,13 +647,27 @@ function Contest() {
                                                         <Button
                                                             colorScheme="green"
                                                             isDisabled={
-                                                                !_participants.includes(_identityCommitment) || _loading
+                                                                !_participants.includes(_identityCommitment) ||
+                                                                _loading ||
+                                                                _submitted ||
+                                                                teamSubmissionEndTime - _latestBlockTimestamp < 0
                                                             }
                                                             onClick={() => handleSubmitTeam(savedTeam)}
                                                         >
                                                             Submit Team
                                                         </Button>
                                                     </Tooltip>
+                                                    <Button
+                                                        isDisabled={
+                                                            !_participants.includes(_identityCommitment) ||
+                                                            _loading ||
+                                                            contestEndTime - _latestBlockTimestamp < 0 ||
+                                                            !_submitted
+                                                        }
+                                                        onClick={handleCalcScoreAndGenProof}
+                                                    >
+                                                        Generate Scorecard Proof and Submit
+                                                    </Button>
                                                 </Td>
                                             </Tr>
                                         </Tbody>
@@ -813,12 +902,8 @@ function Contest() {
                                 </Table>
                             </TableContainer>
                         </TabPanel>
-                        <TabPanel>
-                            <p>LeaderBoard</p>
-                        </TabPanel>
                     </TabPanels>
                 </Tabs>
-                <Button onClick={handleCalcScoreAndGenProof}>Calculate Score and Generate Proof</Button>
             </VStack>
         </Flex>
     )

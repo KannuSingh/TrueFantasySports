@@ -46,6 +46,7 @@ function Contests(props: { matchId: string | undefined }) {
     const [_teamSubmissionDeadline, setTeamSubmittionDeadline] = useState(0)
     const [_identityCommitment, setIdentityCommitment] = useState("")
     const [_latestBlockTimestamp, setLatestBlockTimeStamp] = useState(0)
+    const [_contestCompletionTime, setContestCompletionTime] = useState(0)
 
     const getContests = useCallback(async () => {
         if (_accounts[0]) {
@@ -53,6 +54,7 @@ function Contests(props: { matchId: string | undefined }) {
             const ethereum = (await detectEthereumProvider()) as any
             const contract = getTrueFantasySportContract(ethereum)
             const contests = await contract.queryFilter(contract.filters.ContestCreated())
+            console.log("_contests", contests)
             const members = await contract.queryFilter(contract.filters.MemberAdded())
             // console.log("Contests : " + contests)
             // console.log("Members : " + members)
@@ -98,7 +100,9 @@ function Contests(props: { matchId: string | undefined }) {
             props.matchId != "" &&
             _contestName != "" &&
             _contestEntryFee > 0 &&
-            _teamSubmissionDeadline >= 10
+            _teamSubmissionDeadline >= 0 &&
+            _contestCompletionTime >= 0 &&
+            _contestCompletionTime >= _teamSubmissionDeadline
         ) {
             // const identity = new Identity(_identityString)
             const ethereum = (await detectEthereumProvider()) as any
@@ -123,11 +127,13 @@ function Contests(props: { matchId: string | undefined }) {
                     contestName: contestName,
                     identityCommitment: participantIdentityCommitment,
                     contestEntryFee: entryFee,
+                    contestCompletionTime: _contestCompletionTime * 60 + _latestBlockTimestamp,
                     teamSubmissionDeadline: teamSubmittionDeadline_IN_SECS,
                     matchId: matchId
                 })
             })
             if (status === 200) {
+                window.alert("Successfully created a Contest.")
                 console.log("Successfully created a Contest.")
                 onCreateAndJoinContestModalClose()
             } else {
@@ -249,6 +255,18 @@ function Contests(props: { matchId: string | undefined }) {
                                     value={_teamSubmissionDeadline}
                                     required
                                     onChange={(e) => setTeamSubmittionDeadline(e.target.valueAsNumber)}
+                                />
+                            </SimpleGrid>
+                            <SimpleGrid columns={2} spacing={4}>
+                                <Text>Contest Completion Time(in Minutes)</Text>
+                                <Input
+                                    htmlSize={25}
+                                    width="auto"
+                                    type="number"
+                                    placeholder="Contest Completion Time"
+                                    value={_contestCompletionTime}
+                                    required
+                                    onChange={(e) => setContestCompletionTime(e.target.valueAsNumber)}
                                 />
                             </SimpleGrid>
                             <SimpleGrid columns={2} spacing={4}>

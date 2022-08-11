@@ -14,16 +14,16 @@ contract TrueFantasySports is SemaphoreCore, SemaphoreGroups {
     struct Contest { // Struct
         uint256 contestId;
         uint256 matchId;
-        
+        uint256 contestCompletionTime;
         uint teamSubmissionEndTime;
         uint256 entryfee;
     }
 
      // store mapping of contestId with contest structure
     mapping(uint256 => Contest) contests;
-
+mapping(uint256 => uint256) contestHighestScore;
     mapping (uint256 => uint32) teamCounter;
-    mapping (uint256 => uint256) teamScore;
+    mapping (uint256 => mapping(uint256 => uint256)) userContestScore;
     mapping(uint256 => mapping(uint256 => bool)) contestIdentityCommitmentMapping;
     mapping(uint256 => bytes32) membersTeamHashes;
     //store mapping of matchId with List of ContestId
@@ -32,7 +32,7 @@ contract TrueFantasySports is SemaphoreCore, SemaphoreGroups {
 
     event TeamPosted(uint256 indexed groupId, bytes32 signal);
     event TeamScore(uint256 indexed groupId, uint256 indexed teamHash, uint256 score);
-    event ContestCreated(uint256 indexed contestGroupId, bytes32 contestName,uint256 indexed matchId, uint256 entryFee, uint teamSubmissionEndTime );
+    event ContestCreated(uint256 indexed contestGroupId, bytes32 contestName,uint256 indexed matchId, uint256 entryFee, uint teamSubmissionEndTime ,uint256 contestCompletionTime);
 
     uint8 public treeDepth;
     IVerifier public semaphoreMembershipVerifier;
@@ -50,10 +50,10 @@ contract TrueFantasySports is SemaphoreCore, SemaphoreGroups {
     function getUserNullifierCount(uint256 nullifierHash) view public returns(uint256 count)  {
             return teamCounter[nullifierHash];
     }
-    function getContest(uint256 contestId) view public returns(uint256 matchId, uint teamSubmissionEndTime,uint256 entryfee  )  {
-            return (contests[contestId].matchId ,contests[contestId].teamSubmissionEndTime,contests[contestId].entryfee);
+    function getContest(uint256 contestId) view public returns(uint256 matchId, uint teamSubmissionEndTime,uint256 entryfee , uint256 contestCompletionTime )  {
+            return (contests[contestId].matchId ,contests[contestId].teamSubmissionEndTime,contests[contestId].entryfee, contests[contestId].contestCompletionTime);
     }
-    function createContest(bytes32 _contestName, uint256 _matchId, uint _teamSubmissionEndTime, uint256 _entryFee ,uint256 _identityCommitment ) public {
+    function createContest(bytes32 _contestName, uint256 _matchId, uint _teamSubmissionEndTime, uint256 _contestCompletionTime, uint256 _entryFee ,uint256 _identityCommitment ) public {
         
         require(block.timestamp < _teamSubmissionEndTime,
             "Team Submission end time should be in the future");
@@ -65,6 +65,7 @@ contract TrueFantasySports is SemaphoreCore, SemaphoreGroups {
         contest.contestId = contestId;
         contest.matchId = _matchId;
         contest.teamSubmissionEndTime = _teamSubmissionEndTime;
+        contest.contestCompletionTime = _contestCompletionTime;
         contest.entryfee = _entryFee;
         
 
@@ -73,7 +74,7 @@ contract TrueFantasySports is SemaphoreCore, SemaphoreGroups {
         contestIdentityCommitmentMapping[contestId][_identityCommitment] = true;
         //contestEntryFee[contestGroupId] = entryFee;
 
-        emit ContestCreated(contestId, _contestName,_matchId, _entryFee , _teamSubmissionEndTime);
+        emit ContestCreated(contestId, _contestName,_matchId, _entryFee , _teamSubmissionEndTime,_contestCompletionTime);
     }
 
     // Adding participant to contest(group) will require to pay TFS token specified during Contest
@@ -177,18 +178,20 @@ contract TrueFantasySports is SemaphoreCore, SemaphoreGroups {
             _input
         );
 
-        teamScore[_initialNullifierHash] = _score;
+        userContestScore[_contestId][_initialNullifierHash] = _score;
         teamCounter[_initialNullifierHash] +=1;
+        if(contestHighestScore[_contestId] < _score) {contestHighestScore[_contestId] = _score;}
         emit TeamScore(_contestId,_teamHash,_score);
-
-
-
-
-
 
 
     }
 
+function getHighestScore(uint256 _contestId) public view returns (uint256) {
+    return contestHighestScore[_contestId];
+}
+function getYourScore(uint256 _contestId,uint256 _nullifierHash) public view returns (uint256) {
+    return userContestScore[_contestId][_nullifierHash];
+}
     function hasContestName(bytes32 contestId) private pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(contestId))) >> 8;
     }
