@@ -1,3 +1,5 @@
+import { getSquads } from "./squad"
+
 let matches = [
     {
         id: 1,
@@ -6,7 +8,8 @@ let matches = [
         venue: "Birmingham Stadium",
         host: "England",
         opponent: "South Africa",
-        time: "2:30 PM EST"
+        time: "2:30 PM EST",
+        squads : getSquads()
     }
 ]
 export function getMatches() {

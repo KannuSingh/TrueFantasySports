@@ -1,3 +1,5 @@
+import { getMatch } from "./matches"
+
 let fantasyScorecards = [
     {
         matchId: 1,
@@ -39,9 +41,23 @@ let fantasyScorecards = [
         ]
     }
 ]
+
+function generateFantasyScorecard(matchId) {
+    const match = getMatch(matchId)
+    var squads = match?.squads
+
+    // var host = squads?.host;
+
+    //var opponent = squads[0]?.opponent;
+}
 export function getFantasyScorecards() {
     return fantasyScorecards
 }
+
+function getRandomscore(max) {
+    return Math.floor(Math.random() * max)
+}
+
 export function getFantasyScorecard(matchId: number) {
     return fantasyScorecards.find((fantasyScorecard) => fantasyScorecard.matchId === matchId)
 }

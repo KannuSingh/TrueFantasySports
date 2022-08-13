@@ -1,5 +1,5 @@
 import { Contract, providers, Signer } from "ethers"
-import TrueFantasySports from "../../../contracts/build/contracts/contracts/TrueFantasySports.sol/TrueFantasySports.json"
+import TrueFantasySports from "../../public/contracts/TrueFantasySports.sol/TrueFantasySports.json"
 const { ethereum } = window
 
 //Created check function to see if the MetaMask extension is installed

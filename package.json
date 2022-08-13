@@ -12,7 +12,9 @@
         "start:web-app": "yarn workspace web-app start",
         "lint": "eslint . --ext .js,.ts",
         "prettier": "prettier -c .",
-        "prettier:write": "prettier -w ."
+        "prettier:write": "prettier -w .",
+        "build-web-app": "yarn workspace web-app build",
+        "build-relay": "yarn workspace relay build"
     },
     "keywords": [
         "javascript",
