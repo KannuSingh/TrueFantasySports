@@ -5,7 +5,7 @@ import express from "express"
 import { resolve } from "path"
 const path = require("path")
 
-import { abi as contractAbi } from "../contracts/build/contracts/contracts/TrueFantasySports.sol/TrueFantasySports.json"
+import { abi as contractAbi } from "public/contracts/TrueFantasySports.sol/TrueFantasySports.json"
 
 dotenvConfig({ path: resolve(__dirname, "../../.env") })
 
@@ -144,7 +144,8 @@ app.post("/add-member", async (req, res) => {
 
 app.post("/create-contest", async (req, res) => {
     console.log("Request : Create Contest ")
-    const { contestName, identityCommitment, contestCompletionTime, contestEntryFee, teamSubmissionDeadline, matchId } = req.body
+    const { contestName, identityCommitment, contestCompletionTime, contestEntryFee, teamSubmissionDeadline, matchId } =
+        req.body
     console.log("Contest name : " + contestName)
     console.log("Identity Commitment : " + identityCommitment)
     try {
