@@ -5,7 +5,7 @@ import express from "express"
 import { resolve } from "path"
 const path = require("path")
 
-import { abi as contractAbi } from "public/contracts/TrueFantasySports.sol/TrueFantasySports.json"
+import { abi as contractAbi } from "./public/contracts/TrueFantasySports.sol/TrueFantasySports.json"
 
 dotenvConfig({ path: resolve(__dirname, "../../.env") })
 
