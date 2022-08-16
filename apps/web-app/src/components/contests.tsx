@@ -127,7 +127,7 @@ function Contests(props: { matchId: string | undefined }) {
                     contestName: contestName,
                     identityCommitment: participantIdentityCommitment,
                     contestEntryFee: entryFee,
-                    contestCompletionTime: _contestCompletionTime * 60 + _latestBlockTimestamp,
+                    contestCompletionTime: (_contestCompletionTime * 60 ) + _latestBlockTimestamp,
                     teamSubmissionDeadline: teamSubmittionDeadline_IN_SECS,
                     matchId: matchId
                 })

@@ -563,7 +563,8 @@ function Contest() {
                                         Contest End Time :
                                         {_contestDetails && (contestEndTime - _latestBlockTimestamp) / 60 > 0
                                             ? ((contestEndTime - _latestBlockTimestamp) / 60).toFixed(2)
-                                            : 0}
+                                            : 0}{" "}
+                                        mins
                                     </Text>
                                 </Td>
                                 <Td>
@@ -661,8 +662,7 @@ function Contest() {
                                                         isDisabled={
                                                             !_participants.includes(_identityCommitment) ||
                                                             _loading ||
-                                                            contestEndTime - _latestBlockTimestamp < 0 ||
-                                                            !_submitted
+                                                            contestEndTime - _latestBlockTimestamp < 0
                                                         }
                                                         onClick={handleCalcScoreAndGenProof}
                                                     >
