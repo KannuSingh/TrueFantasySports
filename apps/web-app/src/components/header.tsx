@@ -40,7 +40,8 @@ function Header() {
     const [_password, setPassword] = useState("")
     const [_sudoName, setSudoName] = useState("")
     const [_name, setName] = useState("")
-    const accounts = useSelector(selectAccount)
+    const [_chainId, setChainId] = useState("")
+    const accounts: string[] = useSelector(selectAccount)
     const dispatch = useAppDispatch()
 
     useEffect(() => {
@@ -66,17 +67,18 @@ function Header() {
                     }
                 })
             }
+            setChainId(process.env.ETHEREUM_CHAIN_ID!)
         })()
     }, [])
 
     const handleConnect = async () => {
-        console.log("handleConnect : " + process.env.ETHEREUM_CHAIN_ID)
+        console.log("handleConnect : " + _chainId)
         const ethereum = (await detectEthereumProvider()) as any
         await ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [
                 {
-                    chainId: hexlify(Number(process.env.ETHEREUM_CHAIN_ID!)).replace("0x0", "0x")
+                    chainId: hexlify(Number(_chainId!)).replace("0x0", "0x")
                 }
             ]
         })
@@ -102,7 +104,7 @@ function Header() {
     }
     const handleIdentityCreation = async () => {
         if (accounts.length > 0) {
-            console.log("handleIdentityCreation : " + process.env.ETHEREUM_CHAIN_ID)
+            console.log("handleIdentityCreation : " + _chainId)
             const ethereum = (await detectEthereumProvider()) as any
             var signature: string = await ethereum.request({
                 method: "personal_sign",
@@ -130,15 +132,16 @@ function Header() {
             <Heading as="h1">True Fantasy Sport</Heading>
             <Box as="div" alignSelf="center">
                 <HStack>
-                    <Select defaultValue={1337} width="40%" placeholder="Select chain">
-                        <option value={1337}>Localhost</option>
-                        <option value={4}>Rinkbey testnet</option>
+                    <Select
+                        value={_chainId}
+                        onChange={(e) => {
+                            setChainId(e.target.value)
+                        }}
+                        width="40%"
+                    >
+                        <option value="4">Rinkbey testnet</option>
                     </Select>
-                    {process.env.ETHEREUM_CHAIN_ID ? (
-                        <Text fontSize="xs">Chain: {process.env.ETHEREUM_CHAIN_ID}</Text>
-                    ) : (
-                        <></>
-                    )}
+                    {_chainId != "" ? <Text fontSize="xs">Chain: {_chainId}</Text> : <></>}
                     {accounts[0] ? (
                         <Text fontSize="xs">Account: {accounts[0].toString().substring(0, 15)}...</Text>
                     ) : (
