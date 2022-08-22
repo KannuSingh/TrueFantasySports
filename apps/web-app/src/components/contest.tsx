@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { scoreAndTeamCalldata } from "../../tfsZkProof/tfs/snarkjsTFS"
-import { poseidon } from "circomlibjs"
 import {
     Box,
     Text,
@@ -12,20 +11,11 @@ import {
     TabPanels,
     TabList,
     HStack,
-    Flex,
     SimpleGrid,
     List,
     ListItem,
     Button,
-    Modal,
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalCloseButton,
-    ModalBody,
-    ModalFooter,
     useDisclosure,
-    ListIcon,
     Tooltip,
     TableContainer,
     Table,
@@ -34,46 +24,36 @@ import {
     Th,
     Tbody,
     Td,
-    WrapItem,
-    useBoolean
+    useBoolean,
+    Divider,
+    Image,
+    Spinner
 } from "@chakra-ui/react"
-import { MdCheckCircle, MdAddCircle, MdPerson, MdPersonOutline } from "react-icons/md"
-import { useParams } from "react-router-dom"
-import { getMatch } from "../data/matches"
-import { getSquad } from "../data/squad"
+import { useLocation, useParams } from "react-router-dom"
 import { getFantasyScorecard } from "../data/fantasyScorecard"
-import Contests from "./contests"
-
 import { generateNullifierHash, generateProof, packToSolidityProof } from "@semaphore-protocol/proof"
-import { getTrueFantasySportContract } from "../walletUtils/MetaMaskUtils"
+import {
+    getTFSTokenContract,
+    getTrueFantasySportContract,
+    getTrueFantasySportV1Contract
+} from "../walletUtils/MetaMaskUtils"
 import detectEthereumProvider from "@metamask/detect-provider"
 import { formatBytes32String, parseBytes32String, solidityKeccak256 } from "ethers/lib/utils"
 import { Identity } from "@semaphore-protocol/identity"
 import { selectAccount } from "../redux_slices/accountSlice"
-import { selectIdentity } from "../redux_slices/identitySlice"
-import { useSelector, useDispatch } from "react-redux"
+import { useSelector } from "react-redux"
 import { MyTeam } from "../utils/MyTeam"
 import { calculateMyTeamHash } from "../utils/poseidenUtil"
-import { utils } from "ethers"
+import { Contract, Event, utils } from "ethers"
 import { Group } from "@semaphore-protocol/group"
 import { addTeamAndTeamHash, Contest, selectUserIdentity } from "../redux_slices/userSlice"
-import { useAppDispatch } from "../app/hooks"
-import { createSelector } from "@reduxjs/toolkit"
+import { RootState } from "../app/store"
+import { Fixture, SeasonTeam, SquadInfo } from "../Model/model"
+import { getSimpleDate } from "../utils/commonUtils"
+import CreateTeam from "./createteam"
+import ViewMyTeam from "./viewMyTeam"
+import FantasyScorecard from "./fantasyScorecard"
 
-interface Match {
-    id: number
-    title: string
-    matchDate: string
-    venue: string
-    host: string
-    opponent: string
-    time: string
-}
-interface Squad {
-    matchId: number
-    host: string[]
-    opponent: string[]
-}
 interface FantasyScoreCard {
     matchId: number
     host: {
@@ -85,36 +65,43 @@ interface FantasyScoreCard {
         fantasyScore: number
     }[]
 }
+interface ContestParams {
+    fixture: Fixture
+    localTeam: SeasonTeam
+    visitorTeam: SeasonTeam
+}
 
 function Contest() {
     let params = useParams()
-    const _accounts = useSelector(selectAccount)
-    const [log, setLog] = useState("")
+
+    let state: ContestParams = useLocation()!.state!
+    const { fixture, localTeam, visitorTeam } = state
+    const [_log, setLog] = useState("")
+    const [_contestId, setContestId] = useState(params.contestId)
+    const [_matchId, setMatchId] = useState(fixture.id)
+    const [_localTeamSquad, setLocalTeamSquad] = useState<SquadInfo[]>([])
+    const [_visitorTeamSquad, setVisitorTeamSquad] = useState<SquadInfo[]>([])
+    let contestId = params.contestId
+    let fantasyScorecard: FantasyScoreCard = getFantasyScorecard(1)!
+
+    const _accounts: string[] = useSelector(selectAccount)
+
     const [_submitted, set_Submitted] = useState(false)
-    let squad: Squad = getSquad(parseInt(params.matchId!, 10))!
-    let match: Match = getMatch(parseInt(params.matchId!, 10))!
     const _identityString: string = useSelector(selectUserIdentity)
     const [_identityCommitment, setIdentityCommitment] = useState("")
-    const { isOpen, onOpen, onClose } = useDisclosure()
-    const [_contestId, setContestId] = useState(params.contestId)
-    const [_matchId, setMatchId] = useState(params.matchId)
-    let contestId = params.contestId
-    const [_players, setPlayers] = useState(new Array(30).fill(0))
-    const [_captainIndex, setCaptainIndex] = useState(-1)
-    const [_viceCaptainIndex, setViceCaptainIndex] = useState(-1)
-    const _hostSquadLength = squad.host.length
+    const { isOpen: isCreateTeamOpen, onOpen: onCreateTeamOpen, onClose: onCreateTeamClose } = useDisclosure()
+    const { isOpen: isViewTeamOpen, onOpen: onViewTeamOpen, onClose: onViewTeamClose } = useDisclosure()
     const [_participants, setParticipants] = useState<any[]>([])
     const [contestEndTime, setContestEndTime] = useState(0)
     const [teamSubmissionEndTime, setTeamSubmissionEndTime] = useState(0)
+    const [_participantsWithTeam, setParticipantsWithTeam] = useState<any[]>([])
     const [_yourScore, setYourScore] = useState(0)
     const [_highestScore, setHighestScore] = useState(0)
-    let fantasyScorecard: FantasyScoreCard = getFantasyScorecard(parseInt(params.matchId!, 10))!
-    const dispatch = useAppDispatch()
-    const savedTeam = useSelector((state) => {
+    const savedTeam = useSelector((state: RootState) => {
         if (state.user.identityString == _identityString) {
             if (state.user.contests.length > 0) {
                 const contests = state.user.contests.filter(
-                    (contest) => contest.contestId == _contestId && contest.matchId == _matchId
+                    (contest) => contest.contestId == _contestId && contest.matchId == _matchId.toString()
                 )
                 if (contests.length > 0) {
                     return contests[0].team
@@ -122,11 +109,11 @@ function Contest() {
             }
         }
     })
-    const savedTeamHash = useSelector((state) => {
+    const savedTeamHash = useSelector((state: RootState) => {
         if (state.user.identityString == _identityString) {
             if (state.user.contests.length > 0) {
                 const contests = state.user.contests.filter(
-                    (contest) => contest.contestId == _contestId && contest.matchId == _matchId
+                    (contest) => contest.contestId == _contestId && contest.matchId == _matchId.toString()
                 )
                 if (contests.length > 0) {
                     return contests[0].teamHash
@@ -135,69 +122,135 @@ function Contest() {
         }
     })
 
-    //const [myTeams, setMyTeams] = useState<MyTeam[]>([savedTeam])
+    const [_fantasyScorecard, setFantasyScorecard] = useState<number[]>([])
     const [_myTeamHash, setTeamHash] = useState<string>("")
     const [_loading, setLoading] = useBoolean()
     const [_contestDetails, setContestDetails] = useState<any>()
-
+    const [_isUserSubmittedTeam, setUserSubmittedTeam] = useState<boolean>()
+    const isTransactionPrivacy = useSelector((state: RootState) => state.transactionPrivacy)
     const [_latestBlockTimestamp, setLatestBlockTimeStamp] = useState(0)
 
     const getParticipantList = useCallback(async () => {
-        if (_accounts[0]) {
-            console.log("Getting contest when Account :" + _accounts[0])
-            const ethereum = (await detectEthereumProvider()) as any
-            const contract = getTrueFantasySportContract(ethereum)
-            const members = await contract.queryFilter(contract.filters.MemberAdded(utils.hexlify(BigInt(_contestId!))))
-
-            return members.map((m) => m.args![1].toString())
+        console.log("Getting contest when Account :" + _accounts[0])
+        const ethereum = (await detectEthereumProvider()) as any
+        let contract: Contract | null = null
+        if (isTransactionPrivacy) {
+            contract = getTrueFantasySportContract(ethereum)
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
         }
+        const members = await contract.queryFilter(contract.filters.MemberAdded(utils.hexlify(BigInt(_contestId!))))
 
-        return []
-    }, [_accounts])
-    const getContestDetails = useCallback(async () => {
-        if (_accounts[0]) {
-            console.log("Getting contest when Account :" + _accounts[0])
-            const ethereum = (await detectEthereumProvider()) as any
-            const contract = getTrueFantasySportContract(ethereum)
-            const contests = await contract.queryFilter(
-                contract.filters.ContestCreated(utils.hexlify(BigInt(_contestId!)))
+        return members.map((m) => m.args![2].toString().toLowerCase())
+    }, [_accounts, isTransactionPrivacy])
+
+    const getParticipantWithTeamList = useCallback(async () => {
+        console.log("Getting contest when Account :" + _accounts[0])
+        const ethereum = (await detectEthereumProvider()) as any
+        let members: Event[] = []
+        let contract: Contract | null = null
+        if (isTransactionPrivacy) {
+            contract = getTrueFantasySportContract(ethereum)
+            //need changes in contract code
+            //members = await contract.queryFilter(contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!))))
+            return []
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
+            members = await contract.queryFilter(contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!))))
+            return members.map((m) => ({
+                contestId: m.args![0],
+                memberUID: m.args![1],
+                teamHash: m.args![2]
+            }))
+        }
+    }, [_accounts, isTransactionPrivacy])
+
+    const checkUserTeamSubmission = useCallback(async () => {
+        console.log("Getting contest when Account :" + _accounts[0])
+        const ethereum = (await detectEthereumProvider()) as any
+        let members: Event[] = []
+        let contract: Contract | null = null
+        if (isTransactionPrivacy) {
+            contract = getTrueFantasySportContract(ethereum)
+            //need changes in contract code
+            // members = await contract.queryFilter(contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!))))
+            return false
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
+            members = await contract.queryFilter(
+                contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!)), _accounts[0])
             )
-            if (contests.length == 1) {
-                setContestEndTime(parseInt(contests[0].args![5].toString()))
-                setTeamSubmissionEndTime(parseInt(contests[0].args![4].toString()))
-                return {
-                    contestGroupId: contests[0].args![0].toString(),
-                    contestName: parseBytes32String(contests[0].args![1]),
-                    matchId: contests[0].args![2].toString(),
-                    contestFee: contests[0].args![3].toString(),
-                    contestTeamSubmissionEndTime: contests[0].args![4].toString(),
-                    contestEndTime: contests[0].args![5].toString()
-                }
+            return (
+                members.map((m) => ({
+                    contestId: m.args![0],
+                    memberUID: m.args![1],
+                    teamHash: m.args![2]
+                })).length > 0
+            )
+        }
+    }, [_accounts, isTransactionPrivacy])
+
+    const getContestDetails = useCallback(async () => {
+        console.log("Getting contest when Account :" + _accounts[0])
+        const ethereum = (await detectEthereumProvider()) as any
+        let contests: Event[] = []
+        let contract: Contract | null = null
+
+        if (isTransactionPrivacy) {
+            contract = getTrueFantasySportContract(ethereum)
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
+        }
+        contests = await contract.queryFilter(contract.filters.ContestCreated(utils.hexlify(BigInt(_contestId!))))
+        if (contests.length == 1) {
+            return {
+                contestGroupId: contests[0].args![0].toString(),
+                contestName: parseBytes32String(contests[0].args![1]),
+                matchId: contests[0].args![2].toString(),
+                contestFee: contests[0].args![3].toString(),
+                contestTeamSubmissionEndTime: parseInt(contests[0].args![4].toString()),
+                contestEndTime: parseInt(contests[0].args![5].toString())
             }
         }
-    }, [_accounts])
+    }, [_accounts, isTransactionPrivacy])
+
     useEffect(() => {
         ;(async () => {
-            if (_identityString != "") {
-                const identity = new Identity(_identityString)
-                console.log(identity.generateCommitment().toString())
-                setIdentityCommitment(identity.generateCommitment().toString())
+            if (fixture && localTeam && visitorTeam) {
+                console.log("Got the state values of fixture, and teams")
+                let localTeamSquadSorted: SquadInfo[] = localTeam!.squad!
+                localTeamSquadSorted.sort((a, b) => (a.fullname > b.fullname ? 1 : b.fullname > a.fullname ? -1 : 0))
+                setLocalTeamSquad(localTeamSquadSorted)
+                let visitorTeamSquadSorted: SquadInfo[] = visitorTeam!.squad!
+                visitorTeamSquadSorted.sort((a, b) => (a.fullname > b.fullname ? 1 : b.fullname > a.fullname ? -1 : 0))
+                setVisitorTeamSquad(visitorTeamSquadSorted)
+            } else {
+                console.log("Have to make new requests.")
+            }
+            if (_accounts[0]) {
+                // const identity = new Identity(_identityString)
+                // console.log(identity.generateCommitment().toString())
+                // setIdentityCommitment(identity.generateCommitment().toString())
                 const contestDetails = await getContestDetails()
                 if (contestDetails != undefined) {
                     setContestDetails(contestDetails)
+                    const isUserSubmittedTeam = await checkUserTeamSubmission()
+                    setUserSubmittedTeam(isUserSubmittedTeam)
+                    const participantsWithTeam = await getParticipantWithTeamList()
+                    setParticipantsWithTeam(participantsWithTeam)
+                    console.log("Participants with team : ", participantsWithTeam)
                     getHighestScore(contestDetails.contestGroupId)
                     getYourTeamScore(contestDetails.contestGroupId)
-                    console.log(contestDetails)
                     setLatestBlockTimeStamp(await latestBlockTimestamp())
-                }
-                const participants = await getParticipantList()
-                console.log(participants)
-                if (participants.length > 0) {
+
+                    const participants = await getParticipantList()
+                    console.log(participants)
                     setParticipants(participants)
                 }
             }
         })()
-    }, [_accounts, _identityString])
+    }, [_accounts, _identityString, isTransactionPrivacy])
+
     const latestBlockTimestamp = async () => {
         const ethereum = (await detectEthereumProvider()) as any
         const latestBlock = (await ethereum.request({
@@ -207,206 +260,189 @@ function Contest() {
 
         return parseInt(latestBlock.timestamp, 16)
     }
+
     const handleCreateTeam = () => {
         console.log("handleCreateTeam")
-        if (_identityString != "") {
-            console.log(_identityString)
-            onOpen()
+        if (isTransactionPrivacy && _identityString != "") {
+            onCreateTeamOpen()
+        } else if (!isTransactionPrivacy) {
+            onCreateTeamOpen()
         } else {
-            console.log("Idenity String : " + _identityString)
-            // log = "Login first to create contest"
+            window.alert("In privacy mode : To create team, please login...")
         }
-        // const ethereum = await detectEthereumProvider()
-        // console.log(log)
-        //dispatch(requestAccounts(ethereum));
     }
+
+    const handleViewMyTeam = () => {
+        onViewTeamOpen()
+    }
+
     const getHighestScore = async (contestId) => {
         console.log("Getting highest score of contest")
         const ethereum = (await detectEthereumProvider()) as any
-        const contract = getTrueFantasySportContract(ethereum)
+        let contract: Contract | null = null
+        if (isTransactionPrivacy) {
+            contract = getTrueFantasySportContract(ethereum)
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
+        }
         const score = await contract.getHighestScore(contestId)
-        setHighestScore(score.toNumber())
-        console.log(score)
+        setHighestScore(score.toNumber() / 100)
+        console.log(score / 100)
     }
     const getYourTeamScore = async (contestId) => {
-        const participantIdentity = new Identity(_identityString)
-        const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
-
         console.log("Getting your score of contest")
         const ethereum = (await detectEthereumProvider()) as any
-        const contract = getTrueFantasySportContract(ethereum)
-        const score = await contract.getYourScore(contestId, initialNullifierHash)
-        console.log(score.toNumber())
-        setYourScore(score.toNumber())
-    }
-    const handleTeamCreation = () => {
-        console.log("handleTeamCreation")
-        let selectedPlayersCount = 0
-        for (var i = 0; i < _players.length; ++i) {
-            if (_players[i] == 1) selectedPlayersCount++
-        }
-        if (selectedPlayersCount == 11 && _captainIndex != -1 && _viceCaptainIndex != -1) {
-            let myTeamPlayers: number[][] = new Array(30)
-            const selectedPlayerIdentifier = 1
-            for (let i = 0; i < _players.length; ++i) {
-                myTeamPlayers[i] = new Array(2)
-                if (_players[i] == 1) {
-                    myTeamPlayers[i][0] = selectedPlayerIdentifier
-                    if (i == _captainIndex) {
-                        myTeamPlayers[i][1] = 200
-                    } else if (i == _viceCaptainIndex) {
-                        myTeamPlayers[i][1] = 150
-                    } else {
-                        myTeamPlayers[i][1] = 100
-                    }
-                } else {
-                    myTeamPlayers[i][0] = 0
-                    myTeamPlayers[i][1] = 100
-                }
-            }
-            const identity = new Identity(_identityString)
-            var myTeam: MyTeam = {
-                team: myTeamPlayers,
-                decimal: 2,
-                selectedPlayerIdentifier: selectedPlayerIdentifier,
-                matchIdentifier: match.id,
-                secretIdentity: 1 //hardcoding for now
-            }
-            const myTeamHash = calculateMyTeamHash(myTeam)
-            //console.log(myTeamHash)
-            console.log("Setting my Team hash : " + myTeamHash)
-            setTeamHash(myTeamHash.toString())
-            // const myTeamPoseidenHash = calculateMyTeamHash(myTeam)
-            const contestState: Contest = {
-                matchId: _matchId!,
-                contestId: _contestId!,
-                team: myTeam,
-                teamHash: myTeamHash.toString()
-            }
-            dispatch(addTeamAndTeamHash(contestState))
-            onClose()
-        } else {
-            window.alert("Please choose a total of 11 players")
-        }
-    }
-    const handlePlayerSelection = (playerOf: string, index: number) => {
-        let selectedPlayersCount = 0
-        for (var i = 0; i < _players.length; ++i) {
-            if (_players[i] == 1) selectedPlayersCount++
-        }
-        if (selectedPlayersCount < 11) {
-            let myTeam = [..._players]
-            if (playerOf == "host") {
-                myTeam[index] = 1
-            } else if (playerOf == "opponent") {
-                myTeam[_hostSquadLength + index] = 1
-            }
-            setPlayers(myTeam)
-        } else {
-            console.log("Can not select more that eleven (11) players")
-        }
-    }
-    const handlePlayerDeSelection = (playerOf: string, index: number) => {
-        let selectedPlayersCount = 0
-        for (var i = 0; i < _players.length; ++i) {
-            if (_players[i] == 1) selectedPlayersCount++
-        }
-        if (selectedPlayersCount <= 11) {
-            let myTeam = [..._players]
-            if (playerOf == "host") {
-                myTeam[index] = 0
-            } else if (playerOf == "opponent") {
-                myTeam[_hostSquadLength + index] = 0
-            }
-            setPlayers(myTeam)
-        } else {
-            console.log("Can not select more that eleven (11) players")
-        }
-    }
-    const handleViceCaptain = (playerOf: string, index: number) => {
-        if (playerOf == "host") {
-            setViceCaptainIndex(index)
-        } else if (playerOf == "opponent") {
-            setViceCaptainIndex(_hostSquadLength + index)
-        }
-    }
-    const handleCaptain = (playerOf: string, index: number) => {
-        if (playerOf == "host") {
-            setCaptainIndex(index)
-        } else if (playerOf == "opponent") {
-            setCaptainIndex(_hostSquadLength + index)
-        }
-    }
-    const handleSubmitTeam = async (myTeam: MyTeam) => {
-        try {
-            setLoading.on()
+        let score: any = null
+        let contract: Contract | null = null
+        if (isTransactionPrivacy) {
+            if (_identityString != "") {
+                const participantIdentity = new Identity(_identityString)
+                const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
 
-            const myTeamPoseidenHash = calculateMyTeamHash(savedTeam)
-
-            const myTeamHash = utils.solidityKeccak256(["uint256"], [myTeamPoseidenHash])
-
-            // teamIdentifier is 31 byte string extracted from teamHash
-            const teamIdentifier = myTeamHash.slice(35)
-
-            const bytes32TeamIdentifier = formatBytes32String(teamIdentifier)
-            const ethereum = (await detectEthereumProvider()) as any
-            const contract = getTrueFantasySportContract(ethereum)
-            const treeDepth = Number(process.env.TREE_DEPTH)
-            const members = await contract.queryFilter(contract.filters.MemberAdded(utils.hexlify(BigInt(contestId!))))
-            const group = new Group()
-            group.addMembers(members.map((m) => m.args![1].toString()))
-            const participantIdentity = new Identity(_identityString)
-
-            const { proof, publicSignals } = await generateProof(
-                participantIdentity,
-                group,
-                BigInt(contestId!),
-                teamIdentifier
-            )
-            console.log("Proof generation completed .")
-            const solidityProof = packToSolidityProof(proof)
-            console.log("Solidity Proof " + solidityProof)
-            console.log("Sending request to post team")
-            const { status } = await fetch(`${process.env.RELAY_URL}/post-team`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    teamId: bytes32TeamIdentifier,
-                    teamHash: myTeamHash,
-                    nullifierHash: publicSignals.nullifierHash,
-                    contestId: utils.hexlify(BigInt(contestId!)),
-                    solidityProof: solidityProof
-                })
-            })
-            if (status === 200) {
-                set_Submitted(true)
-                window.alert("Successfully posted team.")
-                onClose()
+                contract = getTrueFantasySportContract(ethereum)
+                score = await contract.getYourScore(contestId, initialNullifierHash)
+                score = score.toNumber()
             } else {
-                console.log("Some error occurred, please try again!")
+                score = 0
+                window.alert("In privacy mode : Please login")
             }
-            setLoading.off()
-        } catch (e) {
-            console.log(e)
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
+            score = await contract.getYourScore(contestId)
+            score = score.toNumber()
         }
+        console.log(score / 100)
+        setYourScore(score / 100)
     }
 
     const handleContestJoin = async () => {
+        setLoading.on()
         try {
-            setLoading.on()
             console.log("handleJoinContest")
-            const { status } = await fetch(`${process.env.RELAY_URL}/add-member`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contestId: utils.hexlify(BigInt(contestId!)),
-                    identityCommitment: _identityCommitment
-                })
-            })
-            if (status === 200) {
-                window.alert("Successfully joined the contest")
+            if (isTransactionPrivacy) {
+                if (_identityString != "") {
+                    const identity = new Identity(_identityString)
+                    setLog(` Waiting for joining contest transaction confirmation...`)
+                    const { status } = await fetch(`${process.env.RELAY_URL}/api/add-member`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contestId: utils.hexlify(BigInt(contestId!)),
+                            identityCommitment: identity.generateCommitment().toString()
+                        })
+                    })
+                    if (status === 200) {
+                        setLog(`Successfully joined the contest`)
+                    } else {
+                        setLog(`Some error occurred, please try again!`)
+                    }
+                } else {
+                    setLog(" Privacy mode On: Please login. OR set privacy mode off and Try again.")
+                }
             } else {
-                window.alert("Some error occurred, please try again!")
+                if (_contestDetails != undefined) {
+                    const ethereum = (await detectEthereumProvider()) as any
+                    const _tfsTokenContract = getTFSTokenContract(ethereum)
+                    setLog("Waiting for entry fee amount approval from user...")
+                    const tokenApprovalTransaction = await _tfsTokenContract!.approve(
+                        process.env.TFS_V1_CONTRACT_ADDRESS,
+                        _contestDetails!.contestFee
+                    )
+                    setLog("Waiting for approved amount transaction confirmation...")
+                    await tokenApprovalTransaction.wait()
+                    setLog("Waiting for join contest transaction approval from user...")
+                    const _trueFantasySportsV1Contract = getTrueFantasySportV1Contract(ethereum)
+                    const addMemberTransaction = await _trueFantasySportsV1Contract!.addMember(
+                        utils.hexlify(BigInt(contestId!))
+                    )
+                    setLog("Waiting for join contest transaction confirmation...")
+                    await addMemberTransaction.wait()
+                    setLog("Successfully joined a Contest. Loading Contents...")
+
+                    _trueFantasySportsV1Contract!.on("MemberAdded", (contestId, memberAddress) => {
+                        setParticipants([..._participants, memberAddress.toString().toLowerCase()])
+                    })
+                } else {
+                    setLog("Error Occured : Unable to get contest details")
+                }
+            }
+        } catch (e) {
+            console.log(e)
+        }
+        setLoading.off()
+    }
+
+    const handleSubmitTeam = async (myTeam: MyTeam) => {
+        setLoading.on()
+        try {
+            const ethereum = (await detectEthereumProvider()) as any
+            const myTeamPoseidenHash = calculateMyTeamHash(savedTeam!)
+            const myTeamHash = utils.solidityKeccak256(["uint256"], [myTeamPoseidenHash])
+
+            if (isTransactionPrivacy) {
+                // teamIdentifier is 31 byte string extracted from teamHash
+                setLog("Generating identity proof for team submission...")
+                const teamIdentifier = myTeamHash.slice(35)
+
+                const bytes32TeamIdentifier = formatBytes32String(teamIdentifier)
+
+                const contract = getTrueFantasySportContract(ethereum)
+                const treeDepth = Number(process.env.TREE_DEPTH)
+                const members = await contract.queryFilter(
+                    contract.filters.MemberAdded(utils.hexlify(BigInt(_contestId!)))
+                )
+                const group = new Group()
+                group.addMembers(members.map((m) => m.args![1].toString()))
+                const participantIdentity = new Identity(_identityString)
+
+                const { proof, publicSignals } = await generateProof(
+                    participantIdentity,
+                    group,
+                    BigInt(contestId!),
+                    teamIdentifier
+                )
+                setLog("Identity Proof generation completed...")
+                const solidityProof = packToSolidityProof(proof)
+                console.log("Solidity Proof " + solidityProof)
+                setLog("Sending team submitting request...")
+                setLog("Waiting for team submitting request completion...")
+                const { status } = await fetch(`${process.env.RELAY_URL}/api/post-team`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        teamId: bytes32TeamIdentifier,
+                        teamHash: myTeamHash,
+                        nullifierHash: publicSignals.nullifierHash,
+                        contestId: utils.hexlify(BigInt(_contestId!)),
+                        solidityProof: solidityProof
+                    })
+                })
+                if (status === 200) {
+                    setLog("Successfully submitted the team in the contest...")
+                } else {
+                    setLog("Some error occurred, please try refreshing...!")
+                }
+            } else {
+                console.log("contract v1")
+                const _trueFantasySportsV1Contract = getTrueFantasySportV1Contract(ethereum)
+                setLog("Waiting for team submission transaction approval...")
+                const postTeamTransaction = await _trueFantasySportsV1Contract!.postTeam(
+                    myTeamHash,
+                    utils.hexlify(BigInt(_contestId!))
+                )
+                setLog("Waiting for team submission transaction confirmation...")
+                await postTeamTransaction.wait()
+                setLog("Loading contents...")
+                _trueFantasySportsV1Contract!.on("TeamPosted", (contestId, _memberAddress, _teamHash) => {
+                    setParticipantsWithTeam([
+                        ..._participantsWithTeam,
+                        {
+                            contestId: contestId,
+                            memberUID: _memberAddress,
+                            teamHash: _teamHash
+                        }
+                    ])
+                })
             }
         } catch (e) {
             console.log(e)
@@ -414,16 +450,14 @@ function Contest() {
         setLoading.off()
     }
     const handleCalcScoreAndGenProof = async () => {
+        setLoading.on()
         try {
-            setLoading.on()
             console.log("started")
-
-            const myTeam: MyTeam = savedTeam
+            setLog("Generating proof for your team score...")
+            const myTeam: MyTeam = savedTeam!
 
             console.log(myTeam)
-            const playersScoreInMatch: number[] = [
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 1, 2, 3, 4, 5, 6, 7
-            ]
+
             const matchIdentifier: bigint = BigInt(myTeam.matchIdentifier)
             const decimal: bigint = BigInt(myTeam.decimal)
             const selectedPlayerIdentifier: bigint = BigInt(myTeam.selectedPlayerIdentifier)
@@ -431,7 +465,7 @@ function Contest() {
             const team: any[][] = myTeam.team
 
             const tfsProof = await scoreAndTeamCalldata(
-                playersScoreInMatch,
+                _fantasyScorecard,
                 matchIdentifier,
                 decimal,
                 selectedPlayerIdentifier,
@@ -456,456 +490,432 @@ function Contest() {
             scoreAndTeamProof.push(tfsProof.c[0])
             scoreAndTeamProof.push(tfsProof.c[1])
 
-            console.log("Proof generation completed for team and score.")
-            const myTeamHash = utils.solidityKeccak256(["uint256"], [savedTeamHash])
+            setLog("Proof for your team's score generated successfully...")
 
-            // teamIdentifier is 31 byte string extracted from teamHash
-            const teamIdentifier = myTeamHash.slice(35)
-
-            const bytes32TeamIdentifier = formatBytes32String(teamIdentifier)
             const ethereum = (await detectEthereumProvider()) as any
-            const contract = getTrueFantasySportContract(ethereum)
-            const treeDepth = Number(process.env.TREE_DEPTH)
-            const members = await contract.queryFilter(contract.filters.MemberAdded(utils.hexlify(BigInt(contestId!))))
-            const group = new Group()
-            group.addMembers(members.map((m) => m.args![1].toString()))
-            const participantIdentity = new Identity(_identityString)
-            const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
+            if (isTransactionPrivacy) {
+                const myTeamHash = utils.solidityKeccak256(["uint256"], [savedTeamHash])
 
-            const userNullifierCount = await contract.getUserNullifierCount(utils.hexlify(initialNullifierHash))
-            console.log("userNullifierCount : " + userNullifierCount)
-            const updateTeamCount = 2
-            const externalNullifier =
-                BigInt(solidityKeccak256(["uint256", "uint32"], [contestId, userNullifierCount])) >> BigInt(8)
+                // teamIdentifier is 31 byte string extracted from teamHash
+                const teamIdentifier = myTeamHash.slice(35)
 
-            const { proof, publicSignals } = await generateProof(
-                participantIdentity,
-                group,
-                externalNullifier,
-                teamIdentifier
-            )
-            console.log("semaphore Proof generation completed .")
-            const semaphoreSolidityProof = packToSolidityProof(proof)
-            console.log("Solidity Proof " + semaphoreSolidityProof)
-            console.log(
-                JSON.stringify({
-                    teamId: bytes32TeamIdentifier,
-                    teamHash: myTeamHash,
-                    initialNullifierHash: utils.hexlify(BigInt(initialNullifierHash)),
-                    nullifierHash: publicSignals.nullifierHash,
-                    contestId: utils.hexlify(BigInt(contestId!)),
-                    semaphoreSolidityProof: semaphoreSolidityProof,
-                    teamAndScoreInputArray: teamAndScoreInputArray,
-                    tfsProof: scoreAndTeamProof
+                const bytes32TeamIdentifier = formatBytes32String(teamIdentifier)
+                setLog("Generating identity proof for score submission...")
+                const contract = getTrueFantasySportContract(ethereum)
+                const treeDepth = Number(process.env.TREE_DEPTH)
+                const members = await contract.queryFilter(
+                    contract.filters.MemberAdded(utils.hexlify(BigInt(contestId!)))
+                )
+                const group = new Group()
+                group.addMembers(members.map((m) => m.args![1].toString()))
+                const participantIdentity = new Identity(_identityString)
+                const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
+
+                const userNullifierCount = await contract.getUserNullifierCount(utils.hexlify(initialNullifierHash))
+                console.log("userNullifierCount : " + userNullifierCount)
+
+                const externalNullifier =
+                    BigInt(
+                        solidityKeccak256(
+                            ["uint256", "uint32", "uint256"],
+                            [contestId, userNullifierCount, initialNullifierHash]
+                        )
+                    ) >> BigInt(8)
+
+                const { proof, publicSignals } = await generateProof(
+                    participantIdentity,
+                    group,
+                    externalNullifier,
+                    teamIdentifier
+                )
+
+                const semaphoreSolidityProof = packToSolidityProof(proof)
+                setLog("Identity proof generation for score submission completed...")
+                console.log(
+                    JSON.stringify({
+                        teamId: bytes32TeamIdentifier,
+                        teamHash: myTeamHash,
+                        initialNullifierHash: utils.hexlify(BigInt(initialNullifierHash)),
+                        nullifierHash: publicSignals.nullifierHash,
+                        contestId: utils.hexlify(BigInt(_contestId!)),
+                        semaphoreSolidityProof: semaphoreSolidityProof,
+                        teamAndScoreInputArray: teamAndScoreInputArray,
+                        tfsProof: scoreAndTeamProof
+                    })
+                )
+                setLog("Waiting for score submission request completion...")
+                const { status } = await fetch(`${process.env.RELAY_URL}/api/submit-score`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        teamId: bytes32TeamIdentifier,
+                        teamHash: myTeamHash,
+                        initialNullifierHash: utils.hexlify(BigInt(initialNullifierHash)),
+                        nullifierHash: publicSignals.nullifierHash,
+                        contestId: utils.hexlify(BigInt(_contestId!)),
+                        semaphoreSolidityProof: semaphoreSolidityProof,
+                        teamAndScoreInputArray: teamAndScoreInputArray,
+                        tfsProof: scoreAndTeamProof
+                    })
                 })
-            )
-            console.log("Sending proof to Submit score...")
-            const { status } = await fetch(`${process.env.RELAY_URL}/submit-score`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    teamId: bytes32TeamIdentifier,
-                    teamHash: myTeamHash,
-                    initialNullifierHash: utils.hexlify(BigInt(initialNullifierHash)),
-                    nullifierHash: publicSignals.nullifierHash,
-                    contestId: utils.hexlify(BigInt(contestId!)),
-                    semaphoreSolidityProof: semaphoreSolidityProof,
-                    teamAndScoreInputArray: teamAndScoreInputArray,
-                    tfsProof: scoreAndTeamProof
-                })
-            })
-            if (status === 200) {
-                console.log("Successfully posted team.")
-                window.alert("Score and Proof Submitted Successfully. ")
+                if (status === 200) {
+                    setLog("Successfully submitted the score... Loading Content... ")
+                } else {
+                    setLog("Some error occurred, please try again!")
+                }
             } else {
-                console.log("Some error occurred, please try again!")
+                console.log("contract v1")
+                const _trueFantasySportsV1Contract = getTrueFantasySportV1Contract(ethereum)
+                setLog("Waiting for score submission transaction approval from user...")
+                const submitScoreProofTransaction = await _trueFantasySportsV1Contract!.submitTeamScore(
+                    utils.hexlify(BigInt(_contestId!)),
+                    teamAndScoreInputArray[0], //_score,
+                    teamAndScoreInputArray[1], //teamPoseidenHash,
+                    teamAndScoreInputArray[2], //_playersScorecard[30],
+                    scoreAndTeamProof //array[8]
+                )
+                setLog("Waiting for score submission transaction confirmation...")
+                await submitScoreProofTransaction.wait()
+                setLog("Score Submitted successfully : " + teamAndScoreInputArray[0].toString())
             }
+
             // }
-            setLoading.off()
         } catch (e) {
             console.log(e)
         }
+        setLoading.off()
+    }
+    const calculateRemainingTimeInMin = (time: number) => {
+        return (time - _latestBlockTimestamp) / 60
+    }
+    const isCurrentUserAParticipant = () => {
+        if (isTransactionPrivacy) {
+            const identity = new Identity(_identityString)
+            return _participants.includes(identity.generateCommitment().toString())
+        } else {
+            return _participants.includes(_accounts[0])
+        }
+    }
+    const handleWinningClaim = async () => {
+        console.log("handle Winning claim.")
+        setLoading.on()
+        if (_yourScore >= _highestScore) {
+            console.log("contract v1")
+            const ethereum = (await detectEthereumProvider()) as any
+            setLog("Waiting for winning reward claim transaction approval from user...")
+            const _trueFantasySportsV1Contract = getTrueFantasySportV1Contract(ethereum)
+            const withdrawWinningAmountTransaction = await _trueFantasySportsV1Contract!.withdrawWinningAmount(
+                utils.hexlify(BigInt(_contestId!))
+            )
+            setLog("Waiting for winning reward claim transaction confirmation...")
+            withdrawWinningAmountTransaction.wait()
+            setLog("Reward Claim transaction completed. ")
+            _trueFantasySportsV1Contract!.on("ClaimedPrize", (contestId, _memberAddress, _amount) => {
+                setLog(`Amount of ${_amount} TFS Token transferred to ${_memberAddress} for winning ${contestId}`)
+            })
+        }
+        setLoading.off()
+    }
+    const handleRequestFantasyScorecard = async () => {
+        const playersScoreInMatch: number[] = [
+            10, 22, 7, 44, 0, 10, 0, 31, 9, 15, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 30, 31, 4, 19, 10, 17, 2, 9, 10, 11,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ]
+        setFantasyScorecard(playersScoreInMatch)
+        console.log(playersScoreInMatch.length)
     }
     return (
-        <Flex align="center" justify="center">
-            <VStack w="70%" spacing={3}>
-                <Heading as="h3" size="lg">
-                    {match.title}
+        <VStack spacing={2}>
+            <VStack spacing={2}>
+                <Heading as="h5" size="lg">
+                    {fixture.localteam.name} vs {fixture.visitorteam.name} - {fixture!.round}
                 </Heading>
-                <HStack>
-                    <Table>
-                        <Tbody>
-                            <Tr>
-                                <Td>
-                                    <Text>Host : {match.host}</Text>
-                                </Td>
-                                <Td>
-                                    <Text>Opponent : {match.opponent}</Text>
-                                </Td>
-                                <Td>
-                                    <Text>Date : {match.matchDate}</Text>
-                                </Td>
-                            </Tr>
-                            <Tr>
-                                <Td>
-                                    <Text>Contest Name : {_contestDetails ? _contestDetails.contestName : ""}</Text>
-                                </Td>
-                                <Td>
-                                    <Text>Contest Entry Fee : {_contestDetails ? _contestDetails.contestFee : ""}</Text>
-                                </Td>
-                                <Td>
-                                    <Text>Participants Count: {_participants.length}</Text>
-                                </Td>
-                            </Tr>
-                            <Tr>
-                                <Td>
-                                    <Text>
-                                        Contest End Time :
-                                        {_contestDetails && (contestEndTime - _latestBlockTimestamp) / 60 > 0
-                                            ? ((contestEndTime - _latestBlockTimestamp) / 60).toFixed(2)
-                                            : 0}{" "}
-                                        mins
-                                    </Text>
-                                </Td>
-                                <Td>
-                                    <Text>
-                                        Team Submission Ends Time :
-                                        {_contestDetails &&
-                                        parseInt(
-                                            (
-                                                (parseInt(_contestDetails.contestTeamSubmissionEndTime) -
-                                                    _latestBlockTimestamp) /
-                                                60
-                                            ).toFixed(2)
-                                        ) > 0
-                                            ? (
-                                                  (parseInt(_contestDetails.contestTeamSubmissionEndTime) -
-                                                      _latestBlockTimestamp) /
-                                                  60
-                                              ).toFixed(2)
-                                            : 0}
-                                    </Text>
-                                </Td>
-                            </Tr>
-                            <Tr>
-                                <Td>
-                                    <Text>Highest Score : {_highestScore}</Text>
-                                </Td>
-                                <Td>
-                                    <Text>Your Score : {_yourScore}</Text>
-                                </Td>
-                            </Tr>
-                        </Tbody>
-                    </Table>
-                </HStack>
-                <Button
-                    isDisabled={_loading || _participants.includes(_identityCommitment)}
-                    onClick={handleContestJoin}
-                >
-                    {_participants.includes(_identityCommitment) ? "Already Joined" : "Join Contest"}
-                </Button>
-                <Tabs w="100%">
-                    <TabList justifyContent="space-around">
-                        <Tab flexGrow="1">My Team</Tab>
-                        <Tab flexGrow="1">Participants</Tab>
-                    </TabList>
+                <Divider orientation="horizontal" />
+            </VStack>
 
-                    <TabPanels>
-                        <TabPanel>
-                            {savedTeam ? (
+            <VStack spacing={2} alignItems="flex-start">
+                <Text fontSize="sm">Fixture date : {getSimpleDate(new Date(fixture!.starting_at))}</Text>
+            </VStack>
+            <HStack w="80%" spacing={1} justifyContent="space-between">
+                <VStack>
+                    <Image w={10} src={fixture!.localteam!.image_path} />
+                    <Text fontSize="md">{fixture.localteam.name}</Text>
+                </VStack>
+                <Text fontSize="sm">{fixture!.note}</Text>
+                <VStack>
+                    <Image w={10} src={fixture!.visitorteam!.image_path} />
+                    <Text fontSize="md">{fixture.visitorteam.name}</Text>
+                </VStack>
+            </HStack>
+
+            <VStack w="100%" alignItems="flex-start">
+                <Divider orientation="horizontal" />
+                <Text fontSize="sm">
+                    Toss :{" "}
+                    {fixture!.localteam_id == fixture.toss_won_team_id
+                        ? fixture.localteam.name
+                        : fixture.visitorteam.name}
+                </Text>
+
+                <Text fontSize="sm">
+                    Venue : {fixture!.venue.name}, {fixture!.venue.city}{" "}
+                </Text>
+                <Divider orientation="horizontal" />
+            </VStack>
+            {_contestDetails ? (
+                <>
+                    <VStack w="100%">
+                        <HStack w="100%" alignItems="flex-start" justifyContent="space-around">
+                            <VStack alignItems="flex-start">
+                                <Text fontSize="sm">
+                                    Contest Name : {_contestDetails ? _contestDetails.contestName : ""}
+                                </Text>
+                                <Text fontSize="sm">
+                                    Contest Entry Fee :{" "}
+                                    {_contestDetails ? parseInt(_contestDetails.contestFee) / 10 ** 18 : ""}
+                                </Text>
+                                <Text fontSize="sm">Participants Count: {_participants.length}</Text>
+                            </VStack>
+
+                            <VStack alignItems="flex-start">
+                                <Text fontSize="sm">
+                                    {"Contest End Time : "}
+                                    {_contestDetails && calculateRemainingTimeInMin(_contestDetails.contestEndTime) > 0
+                                        ? calculateRemainingTimeInMin(_contestDetails.contestEndTime).toFixed(2)
+                                        : 0}{" "}
+                                    mins
+                                </Text>
+                                <Text fontSize="sm">
+                                    {"Team Submission Ends Time : "}
+                                    {_contestDetails &&
+                                    calculateRemainingTimeInMin(_contestDetails.contestTeamSubmissionEndTime) > 0
+                                        ? calculateRemainingTimeInMin(
+                                              _contestDetails.contestTeamSubmissionEndTime
+                                          ).toFixed(2)
+                                        : 0}{" "}
+                                    mins
+                                </Text>
+                            </VStack>
+                            <VStack alignItems="flex-start">
+                                <Text fontSize="sm">Highest Score : {_highestScore}</Text>
+                                <Text fontSize="sm">Your Score : {_yourScore}</Text>
+                            </VStack>
+                        </HStack>
+                    </VStack>
+                    <HStack>
+                        <Button
+                            colorScheme="green"
+                            isDisabled={_loading || isCurrentUserAParticipant()}
+                            onClick={handleContestJoin}
+                        >
+                            {_participants.includes(_identityCommitment) || _participants.includes(_accounts[0])
+                                ? "Already Joined"
+                                : "Join Contest"}
+                        </Button>
+                        <Button
+                            colorScheme="green"
+                            isDisabled={
+                                !isCurrentUserAParticipant ||
+                                _loading ||
+                                !_isUserSubmittedTeam ||
+                                calculateRemainingTimeInMin(_contestDetails.contestEndTime) < 0 ||
+                                _fantasyScorecard.length != 60 ||
+                                _yourScore > 0
+                            }
+                            onClick={handleCalcScoreAndGenProof}
+                        >
+                            Generate Your Score Proof and Submit
+                        </Button>
+                        {!isTransactionPrivacy ? (
+                            <Button
+                                colorScheme="green"
+                                isDisabled={
+                                    _loading ||
+                                    !isCurrentUserAParticipant() ||
+                                    calculateRemainingTimeInMin(_contestDetails.contestEndTime) < 0 ||
+                                    _yourScore < _highestScore ||
+                                    _fantasyScorecard.length != 60
+                                }
+                                onClick={handleWinningClaim}
+                            >
+                                Claim Winning Amount
+                            </Button>
+                        ) : (
+                            <></>
+                        )}
+                    </HStack>
+                    <Tabs w="100%">
+                        <TabList justifyContent="space-around">
+                            <Tab flexGrow="1">My Team</Tab>
+                            <Tab flexGrow="1">Fantasy Scorecard </Tab>
+                            <Tab flexGrow="1">Participants</Tab>
+                        </TabList>
+
+                        <TabPanels>
+                            <TabPanel>
+                                {_loading ? (
+                                    <>
+                                        <HStack justifyContent="center">
+                                            <Spinner size="xl" />
+                                            <Text>{_log}</Text>
+                                        </HStack>
+                                    </>
+                                ) : (
+                                    <>
+                                        {savedTeam && _contestDetails ? (
+                                            <>
+                                                <TableContainer>
+                                                    <Table size="sm" variant="striped" colorScheme="blue">
+                                                        <Thead>
+                                                            <Tr>
+                                                                <Th>#</Th>
+                                                                <Th>Team Identiier</Th>
+                                                                <Th>Action</Th>
+                                                            </Tr>
+                                                        </Thead>
+                                                        <Tbody>
+                                                            <Tr key={"myTeam_1"}>
+                                                                <Td>1</Td>
+                                                                <Td
+                                                                    _hover={{
+                                                                        cursor: "pointer"
+                                                                    }}
+                                                                    onClick={handleViewMyTeam}
+                                                                >
+                                                                    {savedTeamHash?.substring(0, 15)}...
+                                                                </Td>
+
+                                                                <Td>
+                                                                    <HStack>
+                                                                        <Tooltip
+                                                                            hasArrow
+                                                                            label={
+                                                                                !isCurrentUserAParticipant()
+                                                                                    ? "First Join Contest"
+                                                                                    : ""
+                                                                            }
+                                                                            shouldWrapChildren
+                                                                            mt="3"
+                                                                        >
+                                                                            <Button
+                                                                                colorScheme="green"
+                                                                                isDisabled={
+                                                                                    !isCurrentUserAParticipant ||
+                                                                                    _loading ||
+                                                                                    _isUserSubmittedTeam ||
+                                                                                    calculateRemainingTimeInMin(
+                                                                                        _contestDetails.contestTeamSubmissionEndTime
+                                                                                    ) < 0
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleSubmitTeam(savedTeam)
+                                                                                }
+                                                                            >
+                                                                                Submit Team
+                                                                            </Button>
+                                                                        </Tooltip>
+                                                                        <>
+                                                                            {/**
+                                                                 For Production :
+                                                                Have to add one more condition to check whether team submission time have passed. */}
+                                                                        </>
+                                                                    </HStack>
+                                                                </Td>
+                                                            </Tr>
+                                                        </Tbody>
+                                                    </Table>
+                                                </TableContainer>
+                                                <ViewMyTeam
+                                                    fixture={fixture}
+                                                    localTeamSquad={_localTeamSquad}
+                                                    visitorTeamSquad={_visitorTeamSquad}
+                                                    contestId={contestId!}
+                                                    isOpen={isViewTeamOpen}
+                                                    onClose={onViewTeamClose}
+                                                    myTeam={savedTeam!}
+                                                />
+                                            </>
+                                        ) : (
+                                            <HStack justifyContent="space-between">
+                                                <p>No team submitted for this contest </p>
+                                                <Button onClick={handleCreateTeam} colorScheme="green">
+                                                    Create Team
+                                                </Button>
+                                            </HStack>
+                                        )}
+                                        <CreateTeam
+                                            fixture={fixture}
+                                            localTeamSquad={_localTeamSquad}
+                                            visitorTeamSquad={_visitorTeamSquad}
+                                            contestId={contestId!}
+                                            isOpen={isCreateTeamOpen}
+                                            onClose={onCreateTeamClose}
+                                        />{" "}
+                                    </>
+                                )}
+                            </TabPanel>
+
+                            <TabPanel>
+                                <>
+                                    {_fantasyScorecard.length == 60 ? (
+                                        <FantasyScorecard
+                                            fixture={fixture}
+                                            localTeamSquad={_localTeamSquad}
+                                            visitorTeamSquad={_visitorTeamSquad}
+                                            contestId={contestId!}
+                                            fantasyScorecard={_fantasyScorecard}
+                                        />
+                                    ) : (
+                                        <HStack justifyContent="end">
+                                            <Button
+                                                isDisabled={_loading}
+                                                onClick={handleRequestFantasyScorecard}
+                                                colorScheme="green"
+                                            >
+                                                Request Fantasy ScoreCard
+                                            </Button>
+                                        </HStack>
+                                    )}
+                                </>
+                            </TabPanel>
+                            <TabPanel>
                                 <TableContainer>
-                                    <Table size="sm" variant="striped" colorScheme="blue">
+                                    <Table size="md" variant="striped" colorScheme="teal">
                                         <Thead>
                                             <Tr>
                                                 <Th>#</Th>
-                                                <Th>Team Identiier</Th>
+                                                <Th>Participant UID</Th>
 
-                                                <Th>Action</Th>
+                                                <Th>Participant Team Hash</Th>
                                             </Tr>
                                         </Thead>
                                         <Tbody>
-                                            <Tr
-                                                //_hover={{
-                                                //    cursor: "pointer"
-                                                //}}
-                                                key={"myTeam_1"}
-                                                //onClick={(e) => console.log(savedTeam)}
-                                            >
-                                                <Td>1</Td>
-                                                <Td>{savedTeamHash}</Td>
-
-                                                <Td>
-                                                    <Tooltip
-                                                        hasArrow
-                                                        label={
-                                                            !_participants.includes(_identityCommitment)
-                                                                ? "First Join Contest"
-                                                                : ""
-                                                        }
-                                                        shouldWrapChildren
-                                                        mt="3"
-                                                    >
-                                                        <Button
-                                                            colorScheme="green"
-                                                            isDisabled={
-                                                                !_participants.includes(_identityCommitment) ||
-                                                                _loading ||
-                                                                _submitted ||
-                                                                teamSubmissionEndTime - _latestBlockTimestamp < 0
-                                                            }
-                                                            onClick={() => handleSubmitTeam(savedTeam)}
-                                                        >
-                                                            Submit Team
-                                                        </Button>
-                                                    </Tooltip>
-                                                    <Button
-                                                        isDisabled={
-                                                            !_participants.includes(_identityCommitment) ||
-                                                            _loading ||
-                                                            contestEndTime - _latestBlockTimestamp < 0
-                                                        }
-                                                        onClick={handleCalcScoreAndGenProof}
-                                                    >
-                                                        Generate Scorecard Proof and Submit
-                                                    </Button>
-                                                </Td>
-                                            </Tr>
+                                            {_participantsWithTeam.map((participant, index) => (
+                                                <Tr key={"participant_" + index}>
+                                                    <Td>{index + 1}</Td>
+                                                    <Td>
+                                                        <Text>
+                                                            {participant.memberUID.toString().substring(0, 15) + "..."}
+                                                        </Text>
+                                                    </Td>
+                                                    <Td>{participant.teamHash.toString().substring(0, 9) + "..."}</Td>
+                                                </Tr>
+                                            ))}
                                         </Tbody>
                                     </Table>
                                 </TableContainer>
-                            ) : (
-                                <HStack justifyContent="space-between">
-                                    <p>No team submitted for this contest </p>
-                                    <Button onClick={handleCreateTeam} colorScheme="green">
-                                        Create Team
-                                    </Button>
-                                </HStack>
-                            )}
-                            <Modal size="xl" isOpen={isOpen} onClose={onClose}>
-                                <ModalOverlay />
-                                <ModalContent>
-                                    <ModalHeader>Create Team</ModalHeader>
-                                    <ModalCloseButton />
-                                    <ModalBody>
-                                        <SimpleGrid columns={2} spacing={4}>
-                                            <Box>
-                                                <Text bg="blue" textAlign="center">
-                                                    {match.host}
-                                                </Text>
-                                                <List key={"host"} spacing={2}>
-                                                    {squad.host.map((playerName, index) => (
-                                                        <ListItem
-                                                            _hover={{
-                                                                cursor: "pointer"
-                                                            }}
-                                                            key={"fsc_" + playerName + index}
-                                                        >
-                                                            <HStack justify="space-around">
-                                                                <Text w="100%" textAlign="start">
-                                                                    {playerName}
-                                                                </Text>
-                                                                {_players[index] == 1 ? (
-                                                                    <>
-                                                                        <ListIcon
-                                                                            onClick={() =>
-                                                                                handlePlayerDeSelection("host", index)
-                                                                            }
-                                                                            as={MdCheckCircle}
-                                                                            color="green.500"
-                                                                        />
-                                                                        <Tooltip
-                                                                            hasArrow
-                                                                            shouldWrapChildren
-                                                                            label="Captain"
-                                                                        >
-                                                                            {index == _captainIndex ? (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleCaptain("host", index)
-                                                                                    }
-                                                                                    as={MdPerson}
-                                                                                    color="blue.500"
-                                                                                />
-                                                                            ) : (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleCaptain("host", index)
-                                                                                    }
-                                                                                    as={MdPerson}
-                                                                                />
-                                                                            )}
-                                                                        </Tooltip>
-                                                                        <Tooltip
-                                                                            hasArrow
-                                                                            shouldWrapChildren
-                                                                            label="Vice Captain"
-                                                                        >
-                                                                            {index == _viceCaptainIndex ? (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleViceCaptain("host", index)
-                                                                                    }
-                                                                                    as={MdPersonOutline}
-                                                                                    color="blue.500"
-                                                                                />
-                                                                            ) : (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleViceCaptain("host", index)
-                                                                                    }
-                                                                                    as={MdPersonOutline}
-                                                                                />
-                                                                            )}
-                                                                        </Tooltip>
-                                                                    </>
-                                                                ) : (
-                                                                    <ListIcon
-                                                                        onClick={() =>
-                                                                            handlePlayerSelection("host", index)
-                                                                        }
-                                                                        as={MdAddCircle}
-                                                                    />
-                                                                )}
-                                                            </HStack>
-                                                        </ListItem>
-                                                    ))}
-                                                </List>
-                                            </Box>
-                                            <Box>
-                                                <Text bg="green" textAlign="center">
-                                                    {match.opponent}
-                                                </Text>
-                                                <List key={"opponent"} spacing={2}>
-                                                    {squad.opponent.map((playerName, index) => (
-                                                        <ListItem
-                                                            _hover={{
-                                                                cursor: "pointer"
-                                                            }}
-                                                            key={"fsc_" + playerName + index}
-                                                        >
-                                                            <HStack justify="space-around">
-                                                                <Text w="100%" textAlign="start">
-                                                                    {playerName}
-                                                                </Text>
-                                                                {_players[_hostSquadLength + index] == 1 ? (
-                                                                    <>
-                                                                        <ListIcon
-                                                                            onClick={() =>
-                                                                                handlePlayerDeSelection(
-                                                                                    "opponent",
-                                                                                    index
-                                                                                )
-                                                                            }
-                                                                            as={MdCheckCircle}
-                                                                            color="green.500"
-                                                                        />
-                                                                        <Tooltip
-                                                                            hasArrow
-                                                                            shouldWrapChildren
-                                                                            label="Captain"
-                                                                        >
-                                                                            {_hostSquadLength + index ==
-                                                                            _captainIndex ? (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleCaptain("opponent", index)
-                                                                                    }
-                                                                                    as={MdPerson}
-                                                                                    color="blue.500"
-                                                                                />
-                                                                            ) : (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleCaptain("opponent", index)
-                                                                                    }
-                                                                                    as={MdPerson}
-                                                                                />
-                                                                            )}
-                                                                        </Tooltip>
-                                                                        <Tooltip
-                                                                            hasArrow
-                                                                            shouldWrapChildren
-                                                                            label="Vice Captain"
-                                                                        >
-                                                                            {_hostSquadLength + index ==
-                                                                            _viceCaptainIndex ? (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleViceCaptain(
-                                                                                            "opponent",
-                                                                                            index
-                                                                                        )
-                                                                                    }
-                                                                                    as={MdPersonOutline}
-                                                                                    color="blue.500"
-                                                                                />
-                                                                            ) : (
-                                                                                <ListIcon
-                                                                                    onClick={() =>
-                                                                                        handleViceCaptain(
-                                                                                            "opponent",
-                                                                                            index
-                                                                                        )
-                                                                                    }
-                                                                                    as={MdPersonOutline}
-                                                                                />
-                                                                            )}
-                                                                        </Tooltip>
-                                                                    </>
-                                                                ) : (
-                                                                    <ListIcon
-                                                                        onClick={() =>
-                                                                            handlePlayerSelection("opponent", index)
-                                                                        }
-                                                                        as={MdAddCircle}
-                                                                    />
-                                                                )}
-                                                            </HStack>
-                                                        </ListItem>
-                                                    ))}
-                                                </List>
-                                            </Box>
-                                        </SimpleGrid>
-                                    </ModalBody>
-
-                                    <ModalFooter justifyContent="center">
-                                        <Button mr={3} colorScheme="blue" onClick={handleTeamCreation}>
-                                            Create and Join
-                                        </Button>
-                                        <Button onClick={onClose}>Close</Button>
-                                    </ModalFooter>
-                                </ModalContent>
-                            </Modal>
-                        </TabPanel>
-                        <TabPanel>
-                            <TableContainer>
-                                <Table size="md" variant="striped" colorScheme="teal">
-                                    <Thead>
-                                        <Tr>
-                                            <Th>#</Th>
-                                            <Th>Participant commitmentId</Th>
-
-                                            <Th>Participant Team Hash</Th>
-                                        </Tr>
-                                    </Thead>
-                                    <Tbody>
-                                        {_participants.map((participant, index) => (
-                                            <Tr key={"participant_" + index}>
-                                                <Td>{index + 1}</Td>
-                                                <Td>
-                                                    <Text>{participant.toString().substring(0, 15) + "..."}</Text>
-                                                </Td>
-                                                <Td>#</Td>
-                                            </Tr>
-                                        ))}
-                                    </Tbody>
-                                </Table>
-                            </TableContainer>
-                        </TabPanel>
-                    </TabPanels>
-                </Tabs>
-            </VStack>
-        </Flex>
+                            </TabPanel>
+                        </TabPanels>
+                    </Tabs>
+                </>
+            ) : (
+                <>
+                    <HStack justifyContent="center">
+                        <Spinner size="xl" />
+                    </HStack>
+                </>
+            )}
+        </VStack>
     )
 }
 

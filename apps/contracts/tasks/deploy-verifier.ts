@@ -33,3 +33,19 @@ task("deploy:ScoreAndTeamVerifier", "Deploy a ScoreAndTeamVerifier contract")
 
         return contract
     })
+
+task("deploy:TFSToken", "Deploy a TFS Token contract")
+    .addOptionalParam<boolean>("logs", "Print the logs", true, types.boolean)
+    .setAction(async ({ logs }, { ethers }): Promise<Contract> => {
+        const ContractFactory = await ethers.getContractFactory("TFSToken")
+
+        const contract = await ContractFactory.deploy("1000000000000000000000000000")
+
+        await contract.deployed()
+
+        if (logs) {
+            console.info(`TFSToken contract has been deployed to: ${contract.address}`)
+        }
+
+        return contract
+    })

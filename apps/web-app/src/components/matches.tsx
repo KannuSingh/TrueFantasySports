@@ -1,12 +1,12 @@
 import React from "react"
-import { Box, Text, Link, VStack, Heading } from "@chakra-ui/react"
+import { Box, Text, Link, VStack, Heading, Flex } from "@chakra-ui/react"
 import { Link as RouterLink, Outlet } from "react-router-dom"
 import { getMatches } from "../data/matches"
 
 function Matches() {
     let matches = getMatches()
     return (
-        <Box p={5}>
+        <Flex align="center" justify="center">
             <Heading as="h4" size="lg">
                 Matches
             </Heading>
@@ -20,7 +20,7 @@ function Matches() {
                 ))}
             </VStack>
             <Outlet />
-        </Box>
+        </Flex>
     )
 }
 

@@ -50,3 +50,23 @@ task("deploy:truefantasysports", "Deploy an True Fantasy Sports contract")
 
         return contract
     })
+
+task("deploy:truefantasysports_v1", "Deploy an True Fantasy Sports contract Version 1")
+    .addParam<number>("scoreAndTeamVerifierAddress", "ScoreAndTeam Verifier Address  ", undefined, types.string)
+    .addParam<number>("tfsTokenAddress", "TFS Token Address  ", undefined, types.string)
+    .addOptionalParam("logs", "Print the logs", true, types.boolean)
+    .setAction(async ({ logs, scoreAndTeamVerifierAddress, tfsTokenAddress }, { ethers }) => {
+        const [signer] = await ethers.getSigners()
+
+        const FactoryContract = await ethers.getContractFactory("TrueFantasySports_V1", {})
+
+        const contract = await FactoryContract.deploy(scoreAndTeamVerifierAddress, tfsTokenAddress)
+
+        await contract.deployed()
+
+        if (logs) {
+            console.info(`TrueFantasySports_V1 contract has been deployed to: ${contract.address}`)
+        }
+
+        return contract
+    })

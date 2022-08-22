@@ -46,6 +46,11 @@ function getNetworks(): NetworksUserConfig {
                 url: "https://stardust.metis.io/?owner=588",
                 //chainId: 42161,
                 accounts
+            },
+            polygon: {
+                url: `https://polygon-mumbai.g.alchemy.com/v2/${infuraApiKey}`,
+                chainId: 80001,
+                accounts
             }
         }
     }

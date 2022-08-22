@@ -126,7 +126,7 @@ mapping(uint256 => uint256) contestHighestScore;
         
         uint256 root = groups[_contestId].root;
         uint32 _updateTeamCount = teamCounter[_initialNullifierHash];
-        uint256 _externalNullifier = calculateExternalNullifier(_contestId,_updateTeamCount);
+        uint256 _externalNullifier = calculateExternalNullifier(_contestId,_updateTeamCount,_initialNullifierHash);
     
         _verifyProof(_teamIdentifier, root, _newNullifierHash, _externalNullifier, _proof, semaphoreMembershipVerifier);
 
@@ -150,7 +150,7 @@ mapping(uint256 => uint256) contestHighestScore;
         uint256[8] calldata _semaphoreProof, 
         uint256 _score,
         uint256 _teamHash,
-        uint256[30] calldata _playersScorecard,
+        uint256[60] calldata _playersScorecard,
         uint256[8] calldata _teamAndScoreProof) public {
           //  require(block.timestamp > contests[_contestId].teamSubmissionEndTime , "Contest time not completed yet ");
             require(teamCounter[_initialNullifierHash] > 0,"No team submitted");
@@ -158,16 +158,16 @@ mapping(uint256 => uint256) contestHighestScore;
 
         uint256 root = groups[_contestId].root;
         uint32 _teamCounter = teamCounter[_initialNullifierHash];
-        uint256 _externalNullifier = calculateExternalNullifier(_contestId,_teamCounter);
+        uint256 _externalNullifier = calculateExternalNullifier(_contestId,_teamCounter,_initialNullifierHash);
 
          _verifyProof(_teamIdentifier, root, _newNullifierHash, _externalNullifier, _semaphoreProof, semaphoreMembershipVerifier);
 
         bytes32 _hashTeamHash = hashTeamHash(_teamHash);
         require(membersTeamHashes[_initialNullifierHash] == _hashTeamHash,"Submit teamHash of your last saved team.");
-        uint256[32] memory _input;
+        uint256[62] memory _input;
         _input[0] = _score;
         _input[1] = _teamHash;
-        for(uint256 i= 0 ; i<30 ;i++){
+        for(uint256 i= 0 ; i<60 ;i++){
             _input[i+2] = _playersScorecard[i];
         }
 
@@ -200,7 +200,7 @@ function getYourScore(uint256 _contestId,uint256 _nullifierHash) public view ret
         return bytes32(keccak256(abi.encodePacked(_teamHash)));
     }
 
-    function calculateExternalNullifier(uint256 contestId, uint32 _updateTeamCount) private pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(contestId,_updateTeamCount))) >> 8;
+    function calculateExternalNullifier(uint256 contestId, uint32 _updateTeamCount,uint256 _initialNullifierHash) private pure returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(contestId,_updateTeamCount,_initialNullifierHash))) >> 8;
     }
 }

@@ -24,8 +24,8 @@ export async function scoreAndTeamCalldata(
     try {
         dataResult = await exportCallDataGroth16(
             input,
-            `${process.env.RELAY_URL}/download/ScoreAndTeam.wasm`,
-            `${process.env.RELAY_URL}/download/ScoreAndTeam_final.zkey`
+            `${process.env.RELAY_URL}/api/download/ScoreAndTeam.wasm`,
+            `${process.env.RELAY_URL}/api/download/ScoreAndTeam_final.zkey`
         )
     } catch (error) {
         console.log(error)

@@ -35,13 +35,12 @@ function poseidonTree(noOfLeafs: number, input: number[]): number {
 function calculateMyTeamHash(myTeam: MyTeam): number {
     console.log("Started")
     var outputHash: number = -1
-    if (myTeam.team.length == 30) {
+    if (myTeam.team.length == 60) {
         var inputData: number[] = new Array(60)
         let team = myTeam.team
-        for (var i = 0; i < 30; i++) {
+        for (var i = 0; i < 60; i++) {
             //console.log(i)
-            inputData[i * 2] = team[i][0]
-            inputData[i * 2 + 1] = team[i][1]
+            inputData[i] = team[i][0] + team[i][1]
         }
         inputData.push(myTeam.decimal)
         inputData.push(myTeam.selectedPlayerIdentifier)
@@ -50,7 +49,7 @@ function calculateMyTeamHash(myTeam: MyTeam): number {
 
         outputHash = poseidonTree(64, inputData)
     } else {
-        console.log("Error hashing Team : Team don't have 30 players")
+        console.log("Error hashing Team : Team don't have 60 players")
     }
     //-1 signify error
     return outputHash

@@ -20,41 +20,51 @@ describe("TFS Contest", async () => {
     const participantIdentity = new Identity()
     const participantIdentityCommitment = participantIdentity.generateCommitment()
     const tree = createMerkleTree(treeDepth, BigInt(0), [participantIdentityCommitment])
-    const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60
-    const _teamSubmissionEndTime = (await time.latest()) + ONE_YEAR_IN_SECS
+    const TEN_HOUR_IN_SECS = 10 * 60 * 60
+    const ONE_DAY_IN_SECS = 24 * 60 * 60
+
     const semaphoreWasmFilePath = `${config.paths.build["snark-artifacts"]}/semaphore.wasm`
     const semaphoreZkeyFilePath = `${config.paths.build["snark-artifacts"]}/semaphore.zkey`
     const scoreAndTeamWasmFilePath = `${config.paths.build["snark-artifacts"]}/ScoreAndTeam.wasm`
     const scoreAndTeamZkeyFilePath = `${config.paths.build["snark-artifacts"]}/ScoreAndTeam.zkey`
+    before(async () => {
+        const { address: verifierAddress } = await run("deploy:verifier", { logs: true })
+        const { address: scoreAndTeamVerifierAddress } = await run("deploy:ScoreAndTeamVerifier", { logs: true })
 
-    const { address: verifierAddress } = await run("deploy:verifier", {
-        logs: true
+        contract = await run("deploy:truefantasysports", {
+            verifierAddress,
+            scoreAndTeamVerifierAddress
+        })
+        console.log("here")
     })
-    const { address: scoreAndTeamVerifierAddress } = await run("deploy:ScoreAndTeamVerifier", { logs: true })
-
-    contract = await run("deploy:truefantasysports", {
-        logs: true,
-        verifierAddress,
-        scoreAndTeamVerifierAddress
-    })
-
     describe("# createContest", () => {
         it("Should create an contest", async () => {
+            const _teamSubmissionEndTime = (await time.latest()) + TEN_HOUR_IN_SECS
+            const _contestCompletionEndTime = (await time.latest()) + ONE_DAY_IN_SECS
             const transaction = contract.createContest(
                 contestName,
                 matchId,
                 _teamSubmissionEndTime,
+                _contestCompletionEndTime,
                 entryFee,
                 participantIdentityCommitment
             )
             console.log(contestGroupId + "   --   " + participantIdentityCommitment)
             await expect(transaction)
                 .to.emit(contract, "ContestCreated")
-                .withArgs(contestGroupId, contestName, matchId, entryFee)
+                .withArgs(
+                    contestGroupId,
+                    contestName,
+                    matchId,
+                    entryFee,
+                    _teamSubmissionEndTime,
+                    _contestCompletionEndTime
+                )
         })
     })
 
-    describe("# addMember", () => {
+    /*  
+  describe("# addMember", () => {
         it("Should add a member to an existing event", async () => {
             const transaction = contract.addMember(contestGroupId, participantIdentityCommitment)
             console.log(contestGroupId + "   --   " + participantIdentityCommitment)
@@ -63,6 +73,7 @@ describe("TFS Contest", async () => {
                 .withArgs(contestGroupId, participantIdentityCommitment, tree.root)
         })
     })
+*/
 
     describe("# postTeam", () => {
         it("Should post a review anonymously", async () => {
@@ -144,9 +155,15 @@ describe("TFS Contest", async () => {
             const bytes32TeamIdentifier = formatBytes32String(teamIdentifier)
             const merkleProof = tree.createProof(0)
             const updateTeamCount = 1
-            const externalNullifier =
-                BigInt(solidityKeccak256(["uint256", "uint32"], [contestGroupId, updateTeamCount])) >> BigInt(8)
             const initialNullifierHash = await generateNullifierHash(contestGroupId, participantIdentity.getNullifier())
+            const externalNullifier =
+                BigInt(
+                    solidityKeccak256(
+                        ["uint256", "uint32", "uint256"],
+                        [contestGroupId, updateTeamCount, initialNullifierHash]
+                    )
+                ) >> BigInt(8)
+
             const fullProof = await generateProof(participantIdentity, merkleProof, externalNullifier, teamIdentifier, {
                 wasmFilePath: semaphoreWasmFilePath,
                 zkeyFilePath: semaphoreZkeyFilePath
@@ -179,9 +196,15 @@ describe("TFS Contest", async () => {
             const bytes32TeamIdentifier = formatBytes32String(teamIdentifier)
             const merkleProof = tree.createProof(0)
             const updateTeamCount = 2
-            const externalNullifier =
-                BigInt(solidityKeccak256(["uint256", "uint32"], [contestGroupId, updateTeamCount])) >> BigInt(8)
             const initialNullifierHash = await generateNullifierHash(contestGroupId, participantIdentity.getNullifier())
+            const externalNullifier =
+                BigInt(
+                    solidityKeccak256(
+                        ["uint256", "uint32", "uint256"],
+                        [contestGroupId, updateTeamCount, initialNullifierHash]
+                    )
+                ) >> BigInt(8)
+
             const fullProof = await generateProof(participantIdentity, merkleProof, externalNullifier, teamIdentifier, {
                 wasmFilePath: semaphoreWasmFilePath,
                 zkeyFilePath: semaphoreZkeyFilePath

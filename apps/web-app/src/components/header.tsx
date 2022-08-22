@@ -5,8 +5,11 @@ import {
     Box,
     Button,
     Flex,
+    FormControl,
+    FormLabel,
     Heading,
     HStack,
+    Icon,
     Input,
     Modal,
     ModalBody,
@@ -16,10 +19,12 @@ import {
     ModalHeader,
     ModalOverlay,
     Select,
+    Switch,
     Text,
     useDisclosure,
     VStack
 } from "@chakra-ui/react"
+import { MdCircle } from "react-icons/md"
 import { ColorModeSwitcher } from "../ColorModeSwitcher"
 import { accountsChanged, requestAccounts, selectAccount } from "../redux_slices/accountSlice"
 import { hexlify } from "ethers/lib/utils"
@@ -27,8 +32,10 @@ import { useSelector, useDispatch } from "react-redux"
 import { useEffect, useState } from "react"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
 import { createIdentity } from "../redux_slices/identitySlice"
+import { setTransactionPrivacy } from "../redux_slices/transactionPrivacySlice"
 import { Identity } from "@semaphore-protocol/identity"
 import { changeUserIdentity, selectUserIdentity } from "../redux_slices/userSlice"
+import { RootState } from "../app/store"
 
 function Header() {
     const [_metaMaskInstalled, setMetaMaskInstalled] = useState(false)
@@ -41,6 +48,7 @@ function Header() {
     const [_sudoName, setSudoName] = useState("")
     const [_name, setName] = useState("")
     const [_chainId, setChainId] = useState("")
+    const isTransactionPrivacy = useSelector((state: RootState) => state.transactionPrivacy)
     const accounts: string[] = useSelector(selectAccount)
     const dispatch = useAppDispatch()
 
@@ -132,12 +140,22 @@ function Header() {
             <Heading as="h1">True Fantasy Sport</Heading>
             <Box as="div" alignSelf="center">
                 <HStack>
+                    <FormControl display="flex" justifyContent="end" alignItems="center">
+                        <FormLabel htmlFor="transaction-privacy" mb="0">
+                            {isTransactionPrivacy ? "Transaction Privacy" : "Public Transactions"}
+                        </FormLabel>
+                        <Switch
+                            isChecked={isTransactionPrivacy}
+                            onChange={() => dispatch(setTransactionPrivacy(!isTransactionPrivacy))}
+                            id="transaction-privacy"
+                        />
+                    </FormControl>
                     <Select
                         value={_chainId}
                         onChange={(e) => {
                             setChainId(e.target.value)
                         }}
-                        width="40%"
+                        width="50%"
                     >
                         <option value="4">Rinkbey testnet</option>
                     </Select>
@@ -148,13 +166,15 @@ function Header() {
                         <></>
                     )}
                     {_metaMaskInstalled ? (
-                        <Button
-                            colorScheme={_metaMaskConnected ? "green" : "gray"}
-                            isDisabled={_metaMaskConnected}
+                        <HStack
+                            _hover={{
+                                cursor: "pointer"
+                            }}
                             onClick={handleConnect}
                         >
-                            {_metaMaskConnected ? "Connected" : "Connect Metamask"}
-                        </Button>
+                            <Icon as={MdCircle} color={_metaMaskConnected ? "green" : "red"} />
+                            <Text fontSize="xs"> {_metaMaskConnected ? "Connected" : "Connect Metamask"}</Text>
+                        </HStack>
                     ) : (
                         <Button onClick={handleInstall}>Install MetaMask</Button>
                     )}
