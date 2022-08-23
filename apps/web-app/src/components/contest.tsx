@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react"
 import { scoreAndTeamCalldata } from "../../tfsZkProof/tfs/snarkjsTFS"
 import {
-    Box,
     Text,
     VStack,
     Heading,
@@ -11,9 +10,6 @@ import {
     TabPanels,
     TabList,
     HStack,
-    SimpleGrid,
-    List,
-    ListItem,
     Button,
     useDisclosure,
     Tooltip,
@@ -30,7 +26,6 @@ import {
     Spinner
 } from "@chakra-ui/react"
 import { useLocation, useParams } from "react-router-dom"
-import { getFantasyScorecard } from "../data/fantasyScorecard"
 import { generateNullifierHash, generateProof, packToSolidityProof } from "@semaphore-protocol/proof"
 import {
     getTFSTokenContract,
@@ -40,31 +35,21 @@ import {
 import detectEthereumProvider from "@metamask/detect-provider"
 import { formatBytes32String, parseBytes32String, solidityKeccak256 } from "ethers/lib/utils"
 import { Identity } from "@semaphore-protocol/identity"
-import { selectAccount } from "../redux_slices/accountSlice"
+import { selectAccounts } from "../redux_slices/accountSlice"
 import { useSelector } from "react-redux"
 import { MyTeam } from "../utils/MyTeam"
 import { calculateMyTeamHash } from "../utils/poseidenUtil"
 import { Contract, Event, utils } from "ethers"
 import { Group } from "@semaphore-protocol/group"
-import { addTeamAndTeamHash, Contest, selectUserIdentity } from "../redux_slices/userSlice"
-import { RootState } from "../app/store"
+import { Contest, selectUsersDetails } from "../redux_slices/userSlice"
 import { Fixture, SeasonTeam, SquadInfo } from "../Model/model"
 import { getSimpleDate } from "../utils/commonUtils"
 import CreateTeam from "./createteam"
 import ViewMyTeam from "./viewMyTeam"
 import FantasyScorecard from "./fantasyScorecard"
+import { selectPrivacyMode } from "../redux_slices/transactionPrivacySlice"
+import { selectCurrentIdentity } from "../redux_slices/identitySlice"
 
-interface FantasyScoreCard {
-    matchId: number
-    host: {
-        name: string
-        fantasyScore: number
-    }[]
-    opponent: {
-        name: string
-        fantasyScore: number
-    }[]
-}
 interface ContestParams {
     fixture: Fixture
     localTeam: SeasonTeam
@@ -77,64 +62,66 @@ function Contest() {
     let state: ContestParams = useLocation()!.state!
     const { fixture, localTeam, visitorTeam } = state
     const [_log, setLog] = useState("")
-    const [_contestId, setContestId] = useState(params.contestId)
-    const [_matchId, setMatchId] = useState(fixture.id)
+    const _contestId = params.contestId
+    const _matchId = fixture.id
     const [_localTeamSquad, setLocalTeamSquad] = useState<SquadInfo[]>([])
     const [_visitorTeamSquad, setVisitorTeamSquad] = useState<SquadInfo[]>([])
-    let contestId = params.contestId
-    let fantasyScorecard: FantasyScoreCard = getFantasyScorecard(1)!
-
-    const _accounts: string[] = useSelector(selectAccount)
-
-    const [_submitted, set_Submitted] = useState(false)
-    const _identityString: string = useSelector(selectUserIdentity)
+    const _accounts: string[] = useSelector(selectAccounts)
+    const _identityString: string = useSelector(selectCurrentIdentity)
     const [_identityCommitment, setIdentityCommitment] = useState("")
     const { isOpen: isCreateTeamOpen, onOpen: onCreateTeamOpen, onClose: onCreateTeamClose } = useDisclosure()
     const { isOpen: isViewTeamOpen, onOpen: onViewTeamOpen, onClose: onViewTeamClose } = useDisclosure()
     const [_participants, setParticipants] = useState<any[]>([])
-    const [contestEndTime, setContestEndTime] = useState(0)
-    const [teamSubmissionEndTime, setTeamSubmissionEndTime] = useState(0)
     const [_participantsWithTeam, setParticipantsWithTeam] = useState<any[]>([])
     const [_yourScore, setYourScore] = useState(0)
     const [_highestScore, setHighestScore] = useState(0)
-    const savedTeam = useSelector((state: RootState) => {
-        if (state.user.identityString == _identityString) {
-            if (state.user.contests.length > 0) {
-                const contests = state.user.contests.filter(
-                    (contest) => contest.contestId == _contestId && contest.matchId == _matchId.toString()
-                )
-                if (contests.length > 0) {
-                    return contests[0].team
-                }
-            }
-        }
-    })
-    const savedTeamHash = useSelector((state: RootState) => {
-        if (state.user.identityString == _identityString) {
-            if (state.user.contests.length > 0) {
-                const contests = state.user.contests.filter(
-                    (contest) => contest.contestId == _contestId && contest.matchId == _matchId.toString()
-                )
-                if (contests.length > 0) {
-                    return contests[0].teamHash
-                }
-            }
-        }
-    })
-
     const [_fantasyScorecard, setFantasyScorecard] = useState<number[]>([])
-    const [_myTeamHash, setTeamHash] = useState<string>("")
     const [_loading, setLoading] = useBoolean()
     const [_contestDetails, setContestDetails] = useState<any>()
     const [_isUserSubmittedTeam, setUserSubmittedTeam] = useState<boolean>()
-    const isTransactionPrivacy = useSelector((state: RootState) => state.transactionPrivacy)
+    const isPrivacyMode = useSelector(selectPrivacyMode)
     const [_latestBlockTimestamp, setLatestBlockTimeStamp] = useState(0)
+
+    const getSavedTeamHash = (isPrivateUser: boolean, identityString: string, contestId: string, matchId: string) => {
+        const userDetails = useSelector(selectUsersDetails)
+        const users = userDetails.filter(
+            (user) => user.identityString == identityString && user.isPrivateUser == isPrivateUser
+        )
+        if (users.length == 1) {
+            //check if contestToUpdate already exist/joined
+            const userContests = users[0]!.contests.filter(
+                (contest) => contest.matchId == matchId && contest.contestId == contestId
+            )
+            if (userContests.length == 1) {
+                return userContests[0].teamHash
+            }
+        }
+        return ""
+    }
+    const getSavedTeam = (isPrivateUser: boolean, identityString: string, contestId: string, matchId: string) => {
+        const userDetails = useSelector(selectUsersDetails)
+        const users = userDetails.filter(
+            (user) => user.identityString == identityString && user.isPrivateUser == isPrivateUser
+        )
+        if (users.length == 1) {
+            //check if contestToUpdate already exist/joined
+            const userContests = users[0]!.contests.filter(
+                (contest) => contest.matchId == matchId && contest.contestId == contestId
+            )
+            if (userContests.length == 1) {
+                return userContests[0].team
+            }
+        }
+        return null
+    }
+    const savedTeamHash = getSavedTeamHash(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
+    const savedTeam = getSavedTeam(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
 
     const getParticipantList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
         const ethereum = (await detectEthereumProvider()) as any
         let contract: Contract | null = null
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             contract = getTrueFantasySportContract(ethereum)
         } else {
             contract = getTrueFantasySportV1Contract(ethereum)
@@ -142,14 +129,14 @@ function Contest() {
         const members = await contract.queryFilter(contract.filters.MemberAdded(utils.hexlify(BigInt(_contestId!))))
 
         return members.map((m) => m.args![2].toString().toLowerCase())
-    }, [_accounts, isTransactionPrivacy])
+    }, [_accounts, isPrivacyMode])
 
     const getParticipantWithTeamList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
         const ethereum = (await detectEthereumProvider()) as any
         let members: Event[] = []
         let contract: Contract | null = null
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             contract = getTrueFantasySportContract(ethereum)
             //need changes in contract code
             //members = await contract.queryFilter(contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!))))
@@ -163,14 +150,14 @@ function Contest() {
                 teamHash: m.args![2]
             }))
         }
-    }, [_accounts, isTransactionPrivacy])
+    }, [_accounts, isPrivacyMode])
 
     const checkUserTeamSubmission = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
         const ethereum = (await detectEthereumProvider()) as any
         let members: Event[] = []
         let contract: Contract | null = null
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             contract = getTrueFantasySportContract(ethereum)
             //need changes in contract code
             // members = await contract.queryFilter(contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!))))
@@ -188,7 +175,7 @@ function Contest() {
                 })).length > 0
             )
         }
-    }, [_accounts, isTransactionPrivacy])
+    }, [_accounts, isPrivacyMode])
 
     const getContestDetails = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
@@ -196,7 +183,7 @@ function Contest() {
         let contests: Event[] = []
         let contract: Contract | null = null
 
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             contract = getTrueFantasySportContract(ethereum)
         } else {
             contract = getTrueFantasySportV1Contract(ethereum)
@@ -212,7 +199,7 @@ function Contest() {
                 contestEndTime: parseInt(contests[0].args![5].toString())
             }
         }
-    }, [_accounts, isTransactionPrivacy])
+    }, [_accounts, isPrivacyMode])
 
     useEffect(() => {
         ;(async () => {
@@ -249,7 +236,7 @@ function Contest() {
                 }
             }
         })()
-    }, [_accounts, _identityString, isTransactionPrivacy])
+    }, [_accounts, _identityString, isPrivacyMode])
 
     const latestBlockTimestamp = async () => {
         const ethereum = (await detectEthereumProvider()) as any
@@ -263,9 +250,9 @@ function Contest() {
 
     const handleCreateTeam = () => {
         console.log("handleCreateTeam")
-        if (isTransactionPrivacy && _identityString != "") {
+        if (isPrivacyMode && _identityString != "") {
             onCreateTeamOpen()
-        } else if (!isTransactionPrivacy) {
+        } else if (!isPrivacyMode) {
             onCreateTeamOpen()
         } else {
             window.alert("In privacy mode : To create team, please login...")
@@ -280,7 +267,7 @@ function Contest() {
         console.log("Getting highest score of contest")
         const ethereum = (await detectEthereumProvider()) as any
         let contract: Contract | null = null
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             contract = getTrueFantasySportContract(ethereum)
         } else {
             contract = getTrueFantasySportV1Contract(ethereum)
@@ -294,7 +281,7 @@ function Contest() {
         const ethereum = (await detectEthereumProvider()) as any
         let score: any = null
         let contract: Contract | null = null
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             if (_identityString != "") {
                 const participantIdentity = new Identity(_identityString)
                 const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
@@ -319,7 +306,7 @@ function Contest() {
         setLoading.on()
         try {
             console.log("handleJoinContest")
-            if (isTransactionPrivacy) {
+            if (isPrivacyMode) {
                 if (_identityString != "") {
                     const identity = new Identity(_identityString)
                     setLog(` Waiting for joining contest transaction confirmation...`)
@@ -327,7 +314,7 @@ function Contest() {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            contestId: utils.hexlify(BigInt(contestId!)),
+                            contestId: utils.hexlify(BigInt(_contestId!)),
                             identityCommitment: identity.generateCommitment().toString()
                         })
                     })
@@ -353,7 +340,7 @@ function Contest() {
                     setLog("Waiting for join contest transaction approval from user...")
                     const _trueFantasySportsV1Contract = getTrueFantasySportV1Contract(ethereum)
                     const addMemberTransaction = await _trueFantasySportsV1Contract!.addMember(
-                        utils.hexlify(BigInt(contestId!))
+                        utils.hexlify(BigInt(_contestId!))
                     )
                     setLog("Waiting for join contest transaction confirmation...")
                     await addMemberTransaction.wait()
@@ -379,7 +366,7 @@ function Contest() {
             const myTeamPoseidenHash = calculateMyTeamHash(savedTeam!)
             const myTeamHash = utils.solidityKeccak256(["uint256"], [myTeamPoseidenHash])
 
-            if (isTransactionPrivacy) {
+            if (isPrivacyMode) {
                 // teamIdentifier is 31 byte string extracted from teamHash
                 setLog("Generating identity proof for team submission...")
                 const teamIdentifier = myTeamHash.slice(35)
@@ -398,7 +385,7 @@ function Contest() {
                 const { proof, publicSignals } = await generateProof(
                     participantIdentity,
                     group,
-                    BigInt(contestId!),
+                    BigInt(_contestId!),
                     teamIdentifier
                 )
                 setLog("Identity Proof generation completed...")
@@ -493,7 +480,7 @@ function Contest() {
             setLog("Proof for your team's score generated successfully...")
 
             const ethereum = (await detectEthereumProvider()) as any
-            if (isTransactionPrivacy) {
+            if (isPrivacyMode) {
                 const myTeamHash = utils.solidityKeccak256(["uint256"], [savedTeamHash])
 
                 // teamIdentifier is 31 byte string extracted from teamHash
@@ -504,12 +491,15 @@ function Contest() {
                 const contract = getTrueFantasySportContract(ethereum)
                 const treeDepth = Number(process.env.TREE_DEPTH)
                 const members = await contract.queryFilter(
-                    contract.filters.MemberAdded(utils.hexlify(BigInt(contestId!)))
+                    contract.filters.MemberAdded(utils.hexlify(BigInt(_contestId!)))
                 )
                 const group = new Group()
                 group.addMembers(members.map((m) => m.args![1].toString()))
                 const participantIdentity = new Identity(_identityString)
-                const initialNullifierHash = await generateNullifierHash(contestId!, participantIdentity.getNullifier())
+                const initialNullifierHash = await generateNullifierHash(
+                    _contestId!,
+                    participantIdentity.getNullifier()
+                )
 
                 const userNullifierCount = await contract.getUserNullifierCount(utils.hexlify(initialNullifierHash))
                 console.log("userNullifierCount : " + userNullifierCount)
@@ -518,7 +508,7 @@ function Contest() {
                     BigInt(
                         solidityKeccak256(
                             ["uint256", "uint32", "uint256"],
-                            [contestId, userNullifierCount, initialNullifierHash]
+                            [_contestId, userNullifierCount, initialNullifierHash]
                         )
                     ) >> BigInt(8)
 
@@ -589,7 +579,7 @@ function Contest() {
         return (time - _latestBlockTimestamp) / 60
     }
     const isCurrentUserAParticipant = () => {
-        if (isTransactionPrivacy) {
+        if (isPrivacyMode) {
             const identity = new Identity(_identityString)
             return _participants.includes(identity.generateCommitment().toString())
         } else {
@@ -726,7 +716,7 @@ function Contest() {
                         >
                             Generate Your Score Proof and Submit
                         </Button>
-                        {!isTransactionPrivacy ? (
+                        {!isPrivacyMode ? (
                             <Button
                                 colorScheme="green"
                                 isDisabled={
@@ -829,7 +819,7 @@ function Contest() {
                                                     fixture={fixture}
                                                     localTeamSquad={_localTeamSquad}
                                                     visitorTeamSquad={_visitorTeamSquad}
-                                                    contestId={contestId!}
+                                                    contestId={_contestId!}
                                                     isOpen={isViewTeamOpen}
                                                     onClose={onViewTeamClose}
                                                     myTeam={savedTeam!}
@@ -847,7 +837,7 @@ function Contest() {
                                             fixture={fixture}
                                             localTeamSquad={_localTeamSquad}
                                             visitorTeamSquad={_visitorTeamSquad}
-                                            contestId={contestId!}
+                                            contestId={_contestId!}
                                             isOpen={isCreateTeamOpen}
                                             onClose={onCreateTeamClose}
                                         />{" "}
@@ -862,7 +852,7 @@ function Contest() {
                                             fixture={fixture}
                                             localTeamSquad={_localTeamSquad}
                                             visitorTeamSquad={_visitorTeamSquad}
-                                            contestId={contestId!}
+                                            contestId={_contestId!}
                                             fantasyScorecard={_fantasyScorecard}
                                         />
                                     ) : (

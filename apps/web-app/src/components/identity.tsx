@@ -2,17 +2,17 @@ import React from "react"
 import { useEffect, useState } from "react"
 import detectEthereumProvider from "@metamask/detect-provider"
 import { hexlify } from "ethers/lib/utils"
-import { selectAccount } from "../redux_slices/accountSlice"
+import { selectAccounts } from "../redux_slices/accountSlice"
 import { useSelector, useDispatch } from "react-redux"
 import { Box, Heading, Input, VStack, Link, Button, Text, HStack } from "@chakra-ui/react"
 import { Link as RouterLink } from "react-router-dom"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
-import identitySlice, { createIdentity, selectIdentity } from "../redux_slices/identitySlice"
+import { setCurrentIdentity, selectCurrentIdentity } from "../redux_slices/identitySlice"
 import { Identity } from "@semaphore-protocol/identity"
 
 function IdentityManager() {
-    const accounts: string[] = useSelector(selectAccount)
-    const _identityString: string = useSelector(selectIdentity)
+    const accounts: string[] = useSelector(selectAccounts)
+    const _identityString: string = useSelector(selectCurrentIdentity)
     let [_identity, setIdentity] = useState<Identity>()
     const [_secretMessage, setSecretMessage] = useState("")
     const [_sudoName, setSudoName] = useState("")
@@ -36,7 +36,7 @@ function IdentityManager() {
             const identity = new Identity(signature)
 
             //const identityString: string = "{'name':'" + _sudoName + "','value':'" + identity.toString() + "'}"
-            dispatch(createIdentity(identity.toString()))
+            dispatch(setCurrentIdentity(identity.toString()))
             _identity = identity
         } else {
             console.log("First connect Metamask")
@@ -45,7 +45,7 @@ function IdentityManager() {
     const handleClearIdentity = async () => {
         console.log("handleClearIdentity : " + process.env.ETHEREUM_CHAIN_ID)
 
-        dispatch(createIdentity(""))
+        dispatch(setCurrentIdentity(""))
         setSudoName("")
         setSecretMessage("")
     }

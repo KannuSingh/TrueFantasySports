@@ -7,21 +7,13 @@ export const identitySlice = createSlice({
     name: "identity",
     initialState,
     reducers: {
-        changeIdentity: (state, action: PayloadAction<string>) => {
-            // Redux Toolkit allows us to write "mutating" logic in reducers. It
-            // doesn't actually mutate the state because it uses the immer library,
-            // which detects changes to a "draft state" and produces a brand new
-            // immutable state based off those changes
+        setCurrentIdentity: (state, action: PayloadAction<string>) => {
             return action.payload
         }
     }
 })
-export const { changeIdentity } = identitySlice.actions
+export const { setCurrentIdentity } = identitySlice.actions
 
-export const createIdentity =
-    (identity: string) => async (dispatch: (arg0: { payload: string; type: string }) => void) => {
-        dispatch(changeIdentity(identity))
-    }
 export default identitySlice.reducer
 
-export const selectIdentity = (state: RootState) => state.identity
+export const selectCurrentIdentity = (state: RootState) => state.currentIdentity

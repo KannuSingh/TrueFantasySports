@@ -7,10 +7,6 @@ export const accountSlice = createSlice({
     initialState,
     reducers: {
         accountsChanged: (state, action: PayloadAction<string[]>) => {
-            // Redux Toolkit allows us to write "mutating" logic in reducers. It
-            // doesn't actually mutate the state because it uses the immer library,
-            // which detects changes to a "draft state" and produces a brand new
-            // immutable state based off those changes
             return action.payload
         }
     }
@@ -33,4 +29,4 @@ export const requestAccounts =
         }
     }
 
-export const selectAccount = (state: RootState) => state.accounts
+export const selectAccounts = (state: RootState) => state.accounts

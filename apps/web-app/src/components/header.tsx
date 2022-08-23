@@ -26,30 +26,35 @@ import {
 } from "@chakra-ui/react"
 import { MdCircle } from "react-icons/md"
 import { ColorModeSwitcher } from "../ColorModeSwitcher"
-import { accountsChanged, requestAccounts, selectAccount } from "../redux_slices/accountSlice"
+import { accountsChanged, requestAccounts, selectAccounts } from "../redux_slices/accountSlice"
 import { hexlify } from "ethers/lib/utils"
 import { useSelector, useDispatch } from "react-redux"
 import { useEffect, useState } from "react"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { createIdentity } from "../redux_slices/identitySlice"
-import { setTransactionPrivacy } from "../redux_slices/transactionPrivacySlice"
+import { selectCurrentIdentity, setCurrentIdentity } from "../redux_slices/identitySlice"
+import { selectPrivacyMode, setPrivacyMode } from "../redux_slices/transactionPrivacySlice"
 import { Identity } from "@semaphore-protocol/identity"
-import { changeUserIdentity, selectUserIdentity } from "../redux_slices/userSlice"
-import { RootState } from "../app/store"
+import { addUser, UserPayload } from "../redux_slices/userSlice"
+import {
+    selectMetaMaskConnected,
+    selectMetaMaskInstalled,
+    setMetaMaskInstalled,
+    setMetaMaskConnected
+} from "../redux_slices/metamaskSlice"
 
 function Header() {
-    const [_metaMaskInstalled, setMetaMaskInstalled] = useState(false)
-    const [_metaMaskConnected, setMetaMaskConnected] = useState(false)
-    const _savedIdentity = useSelector(selectUserIdentity)
-    const [_identityString, setIdentity] = useState(_savedIdentity)
+    const _metaMaskInstalled = useSelector(selectMetaMaskInstalled)
+    const _metaMaskConnected = useSelector(selectMetaMaskConnected)
+
+    const _identityString = useSelector(selectCurrentIdentity)
     const [_isUserLoggedIn, setUserLoggedIn] = useState(false)
     const { isOpen, onOpen, onClose } = useDisclosure()
     const [_password, setPassword] = useState("")
     const [_sudoName, setSudoName] = useState("")
     const [_name, setName] = useState("")
     const [_chainId, setChainId] = useState("")
-    const isTransactionPrivacy = useSelector((state: RootState) => state.transactionPrivacy)
-    const accounts: string[] = useSelector(selectAccount)
+    const _isPrivacyMode = useSelector(selectPrivacyMode)
+    const _accounts: string[] = useSelector(selectAccounts)
     const dispatch = useAppDispatch()
 
     useEffect(() => {
@@ -58,20 +63,23 @@ function Header() {
             //checking if the MetaMask extension is installed
             if (Boolean(ethereum && ethereum.isMetaMask)) {
                 //if installed
-                setMetaMaskInstalled(true)
-                if (accounts.length > 0) {
+                console.log("Installed")
+                dispatch(setMetaMaskInstalled(true))
+                if (_accounts.length > 0) {
                     setMetaMaskConnected(true)
                 }
                 if (_identityString != "") {
                     setUserLoggedIn(true)
                 }
                 ethereum.on("accountsChanged", (newAccounts: string[]) => {
-                    if (newAccounts.length !== 0 && accounts[0] != newAccounts[0]) {
-                        setMetaMaskConnected(true)
-                        //dispatch(accountsChanged(newAccounts))
-
-                        setUserLoggedIn(false)
-                        handleLogin()
+                    if (newAccounts.length !== 0 && _accounts[0] != newAccounts[0]) {
+                        console.log("User changed account in their metamask wallet")
+                        window.alert("Account changed detected, Changing account in application")
+                        dispatch(accountsChanged(newAccounts))
+                        if (_isPrivacyMode) {
+                            //setUserLoggedIn(false)
+                            handleLogin()
+                        }
                     }
                 })
             }
@@ -80,18 +88,24 @@ function Header() {
     }, [])
 
     const handleConnect = async () => {
-        console.log("handleConnect : " + _chainId)
+        console.log("handleMetaMaskConnect : " + _chainId)
         const ethereum = (await detectEthereumProvider()) as any
-        await ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [
-                {
-                    chainId: hexlify(Number(_chainId!)).replace("0x0", "0x")
-                }
-            ]
-        })
-        setMetaMaskConnected(true)
-        dispatch(requestAccounts(ethereum))
+        if (_chainId) {
+            await ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [
+                    {
+                        chainId: hexlify(Number(_chainId!)).replace("0x0", "0x")
+                    }
+                ]
+            })
+            var accounts: string[] = await ethereum.request({
+                method: "eth_requestAccounts"
+            })
+
+            dispatch(accountsChanged(accounts))
+            dispatch(setMetaMaskConnected(true))
+        }
     }
 
     const handleInstall = async () => {
@@ -100,6 +114,7 @@ function Header() {
         //dispatch(requestAccounts(ethereum));
     }
     const handleLogin = async () => {
+        console.log("handleLogin")
         if (!_metaMaskConnected) {
             await handleConnect()
             onOpen()
@@ -107,24 +122,28 @@ function Header() {
             onOpen()
         }
         // const ethereum = await detectEthereumProvider()
-        console.log("handleLogin")
+
         //dispatch(requestAccounts(ethereum));
     }
     const handleIdentityCreation = async () => {
-        if (accounts.length > 0) {
+        if (_accounts.length > 0) {
             console.log("handleIdentityCreation : " + _chainId)
             const ethereum = (await detectEthereumProvider()) as any
             var signature: string = await ethereum.request({
                 method: "personal_sign",
-                params: [_password, accounts[0]]
+                params: [_password, _accounts[0]]
             })
             console.log("Signature : " + signature)
 
             const identity = new Identity(signature)
 
             //const identityString: string = "{'name':'" + _sudoName + "','value':'" + identity.toString() + "'}"
-
-            dispatch(changeUserIdentity(identity.toString()))
+            const userPayload: UserPayload = {
+                isPrivateUser: _isPrivacyMode,
+                identityString: identity.toString()
+            }
+            dispatch(addUser(userPayload))
+            dispatch(setCurrentIdentity(identity.toString()))
             setName(_sudoName)
             setUserLoggedIn(true)
             setSudoName("")
@@ -134,6 +153,14 @@ function Header() {
             console.log("First connect Metamask")
         }
     }
+    const handlePrivacyModeToggle = () => {
+        if (!_isPrivacyMode) {
+            handleLogin()
+        } else {
+            dispatch(setCurrentIdentity(""))
+        }
+        dispatch(setPrivacyMode(!_isPrivacyMode))
+    }
 
     return (
         <Flex justify="space-between" align="center" p={5}>
@@ -142,11 +169,11 @@ function Header() {
                 <HStack>
                     <FormControl display="flex" justifyContent="end" alignItems="center">
                         <FormLabel htmlFor="transaction-privacy" mb="0">
-                            {isTransactionPrivacy ? "Transaction Privacy" : "Public Transactions"}
+                            {_isPrivacyMode ? "Privacy" : "Public"}
                         </FormLabel>
                         <Switch
-                            isChecked={isTransactionPrivacy}
-                            onChange={() => dispatch(setTransactionPrivacy(!isTransactionPrivacy))}
+                            isChecked={_isPrivacyMode}
+                            onChange={handlePrivacyModeToggle}
                             id="transaction-privacy"
                         />
                     </FormControl>
@@ -160,30 +187,33 @@ function Header() {
                         <option value="4">Rinkbey testnet</option>
                     </Select>
                     {_chainId != "" ? <Text fontSize="xs">Chain: {_chainId}</Text> : <></>}
-                    {accounts[0] ? (
-                        <Text fontSize="xs">Account: {accounts[0].toString().substring(0, 15)}...</Text>
+                    {_accounts[0] ? (
+                        <Text fontSize="xs">Account: {_accounts[0].toString().substring(0, 15)}...</Text>
                     ) : (
                         <></>
                     )}
                     {_metaMaskInstalled ? (
-                        <HStack
-                            _hover={{
-                                cursor: "pointer"
-                            }}
-                            onClick={handleConnect}
-                        >
-                            <Icon as={MdCircle} color={_metaMaskConnected ? "green" : "red"} />
-                            <Text fontSize="xs"> {_metaMaskConnected ? "Connected" : "Connect Metamask"}</Text>
+                        <HStack>
+                            {_metaMaskConnected ? (
+                                <>
+                                    <Icon as={MdCircle} color={_metaMaskConnected ? "green" : "red"} />
+                                    <Text fontSize="xs">Connected </Text>
+                                </>
+                            ) : (
+                                <Button onClick={handleConnect}>Connect Metamask</Button>
+                            )}
                         </HStack>
                     ) : (
                         <Button onClick={handleInstall}>Install MetaMask</Button>
                     )}
-                    {_isUserLoggedIn ? (
+                    {_isPrivacyMode && _identityString != "" ? (
                         <Avatar size="md" name={_name} />
-                    ) : (
+                    ) : _isPrivacyMode && _identityString == "" ? (
                         <Button colorScheme="green" onClick={handleLogin}>
                             Login
                         </Button>
+                    ) : (
+                        <></>
                     )}
                     // Modal for Login ( Login Form)
                     <Modal isOpen={isOpen} onClose={onClose}>
@@ -212,7 +242,7 @@ function Header() {
 
                             <ModalFooter justifyContent="center">
                                 <Button mr={3} colorScheme="blue" onClick={handleIdentityCreation}>
-                                    Create Identity
+                                    LOGIN
                                 </Button>
                                 <Button onClick={onClose}>Close</Button>
                             </ModalFooter>

@@ -33,20 +33,19 @@ import {
 } from "../walletUtils/MetaMaskUtils"
 import { useSelector } from "react-redux"
 import detectEthereumProvider from "@metamask/detect-provider"
-import { selectAccount } from "../redux_slices/accountSlice"
+import { selectAccounts } from "../redux_slices/accountSlice"
 import { formatBytes32String, parseBytes32String } from "ethers/lib/utils"
 import { Identity } from "@semaphore-protocol/identity"
-import { useNavigate } from "react-router-dom"
-import { selectUserIdentity } from "../redux_slices/userSlice"
-import { RootState } from "../app/store"
+import { selectPrivacyMode } from "../redux_slices/transactionPrivacySlice"
+import { selectCurrentIdentity } from "../redux_slices/identitySlice"
 
 function Contests(props: { matchId: number | undefined; handleContestClick }) {
-    const _accounts: string[] = useSelector(selectAccount)
+    const _accounts: string[] = useSelector(selectAccounts)
     const { isOpen: isOpenCreateAndJoinContest, onOpen, onClose: onCreateAndJoinContestModalClose } = useDisclosure()
     const [_loading, setLoading] = useBoolean()
 
     const [_log, setLog] = useState("")
-    const _identityString: string = useSelector(selectUserIdentity)
+    const _identityString: string = useSelector(selectCurrentIdentity)
     const [_contests, setContests] = useState<any[]>([])
     const [_contestName, setContestName] = useState("")
     const [_contestEntryFee, setContestEntryFee] = useState(0)
@@ -57,7 +56,7 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
     const [_trueFantasySportsContract, setTrueFantasySportsContract] = useState<Contract>()
     const [_trueFantasySportsV1Contract, setTrueFantasySportsV1Contract] = useState<Contract>()
     const [_tfsTokenContract, setTFSTokenContract] = useState<Contract>()
-    const isTransactionPrivacy = useSelector((state: RootState) => state.transactionPrivacy)
+    const isPrivacyMode = useSelector(selectPrivacyMode)
 
     const getTFSContests = useCallback(async () => {
         console.log("getTFSContests when Account :" + _accounts[0])
@@ -121,7 +120,7 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
 
             if (_accounts[0]) {
                 let contests: any[] = []
-                if (isTransactionPrivacy) {
+                if (isPrivacyMode) {
                     contests = await getTFSContests()
                 } else {
                     contests = await getTFSV1Contests()
@@ -131,12 +130,12 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
                 setLatestBlockTimeStamp(await latestBlockTimestamp())
             }
         })()
-    }, [_accounts, _identityString, isTransactionPrivacy])
+    }, [_accounts, _identityString, isPrivacyMode])
 
     const handleCreateContest = async () => {
-        if (isTransactionPrivacy && _identityString != "") {
+        if (isPrivacyMode && _identityString != "") {
             onOpen()
-        } else if (!isTransactionPrivacy) {
+        } else if (!isPrivacyMode) {
             onOpen()
         } else {
             window.alert("In privacy mode : To create contest, please login...")
@@ -170,7 +169,7 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
                 const entryFee = utils.hexlify(BigInt(_contestEntryFee * 10 ** 18))
                 const matchId = utils.hexlify(BigInt(props.matchId!))
                 const contestName = formatBytes32String(_contestName)
-                if (isTransactionPrivacy) {
+                if (isPrivacyMode) {
                     if (_identityString != "" && props.matchId) {
                         const identity = new Identity(_identityString)
                         const participantIdentityCommitment = identity.generateCommitment().toString()

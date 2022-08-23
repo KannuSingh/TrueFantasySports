@@ -4,9 +4,10 @@ import storage from "redux-persist/lib/storage"
 import { persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from "redux-persist"
 import accountReducer from "../redux_slices/accountSlice"
 import identityReducer from "../redux_slices/identitySlice"
-import userReducer from "../redux_slices/userSlice"
-import logReducer from "../redux_slices/appSlice"
-import transactionPrivacyReducer from "../redux_slices/transactionPrivacySlice"
+import usersReducer from "../redux_slices/userSlice"
+import logReducer from "../redux_slices/logSlice"
+import metaMaskReducer from "../redux_slices/metamaskSlice"
+import transactionPrivacyModeReducer from "../redux_slices/transactionPrivacySlice"
 
 const persistConfig = {
     key: "root",
@@ -14,11 +15,12 @@ const persistConfig = {
 }
 
 const rootReducer = combineReducers({
+    metamask: metaMaskReducer,
     accounts: accountReducer,
-    identity: identityReducer,
-    user: userReducer,
-    log: logReducer,
-    transactionPrivacy: transactionPrivacyReducer
+    currentIdentity: identityReducer,
+    isPrivacyMode: transactionPrivacyModeReducer,
+    usersDetails: usersReducer,
+    log: logReducer
 })
 const persistedReducer = persistReducer(persistConfig, rootReducer)
 const store = configureStore({

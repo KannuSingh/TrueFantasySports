@@ -15,75 +15,131 @@ export interface Contest {
     teamScore?: string
 }
 export interface User {
+    isPrivateUser: boolean
     identityString: string
-
     contests: Contest[]
 }
-const initialState: User = {
-    identityString: "",
-    contests: []
+export interface UserPayload {
+    isPrivateUser: boolean
+    identityString: string
 }
-export const userSlice = createSlice({
+export interface UserContestPayload {
+    isPrivateUser: boolean
+    identityString: string
+    contest: Contest
+}
+const initialState: User[] = []
+export const usersSlice = createSlice({
     name: "user",
     initialState,
     reducers: {
-        changeUserIdentity: (state, action: PayloadAction<string>) => {
-            // Redux Toolkit allows us to write "mutating" logic in reducers. It
-            // doesn't actually mutate the state because it uses the immer library,
-            // which detects changes to a "draft state" and produces a brand new
-            // immutable state based off those changes
-            state.identityString = action.payload
-        },
-        addContest: (state, action: PayloadAction<Contest>) => {
-            // Redux Toolkit allows us to write "mutating" logic in reducers. It
-            // doesn't actually mutate the state because it uses the immer library,
-            // which detects changes to a "draft state" and produces a brand new
-            // immutable state based off those changes
-            let contest: Contest = {
-                matchId: action.payload.matchId,
-                contestId: action.payload.contestId
+        addUser: (state, action: PayloadAction<UserPayload>) => {
+            const users = state.filter(
+                (user) =>
+                    user.identityString == action.payload.identityString &&
+                    user.isPrivateUser == action.payload.isPrivateUser
+            )
+            if (users.length == 0) {
+                return [...state, { ...action.payload, contests: [] }]
+            } else {
+                return state
             }
-            state.contests = [...state.contests, contest]
+        },
+        joinContest: (state, action: PayloadAction<UserContestPayload>) => {
+            const isPrivateUser = action.payload.isPrivateUser
+            const userIdentityString = action.payload.identityString
+            const contestToJoin = action.payload.contest
+            const users = state.filter(
+                (user) => user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser
+            )
+            //length = 1 signify user is already in the state object
+            if (users.length == 1) {
+                //check if contestToJoin already exist/joined
+                const contestAlreadyExist: boolean =
+                    users[0]!.contests.filter((contest) => {
+                        contest.matchId == contestToJoin.matchId && contest.contestId == contestToJoin.contestId
+                    }).length > 0
+                if (contestAlreadyExist) {
+                    return state
+                } else {
+                    users[0]!.contests = [...users[0]!.contests, contestToJoin]
+                    return [...state, users[0]!]
+                }
+            } else {
+                return [
+                    ...state,
+                    { isPrivateUser: isPrivateUser, identityString: userIdentityString, contests: [contestToJoin] }
+                ]
+            }
         },
 
-        addTeamAndTeamHash: (state, action: PayloadAction<Contest>) => {
-            // Redux Toolkit allows us to write "mutating" logic in reducers. It
-            // doesn't actually mutate the state because it uses the immer library,
-            // which detects changes to a "draft state" and produces a brand new
-            // immutable state based off those changes
-            if (state.contests.length > 0) {
-                state.contests.map((contest) => {
-                    if (contest.contestId == action.payload.contestId) {
-                        contest.team = action.payload.team
-                        contest.teamHash = action.payload.teamHash
+        addTeamAndTeamHash: (state, action: PayloadAction<UserContestPayload>) => {
+            const isPrivateUser = action.payload.isPrivateUser
+            const userIdentityString = action.payload.identityString
+            const contestToUpdate = action.payload.contest
+            const users = state.filter(
+                (user) => user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser
+            )
+            //length = 1 signify user is already in the state object
+            if (users.length == 1) {
+                //check if contestToUpdate already exist/joined
+                const userContests = users[0]!.contests.map((contest) => {
+                    if (contest.matchId == contestToUpdate.matchId && contest.contestId == contestToUpdate.contestId) {
+                        contest.team = contestToUpdate.team
+                        contest.teamHash = contestToUpdate.teamHash
                         return contest
                     } else {
                         return contest
                     }
                 })
+
+                users[0]!.contests = userContests
+                return [...state, users[0]!]
             } else {
-                state.contests.push(action.payload)
+                return [
+                    ...state,
+                    { isPrivateUser: isPrivateUser, identityString: userIdentityString, contests: [contestToUpdate] }
+                ]
             }
         },
-        addTeamScore: (state, action: PayloadAction<Contest>) => {
-            // Redux Toolkit allows us to write "mutating" logic in reducers. It
-            // doesn't actually mutate the state because it uses the immer library,
-            // which detects changes to a "draft state" and produces a brand new
-            // immutable state based off those changes
-            state.contests.map((contest) => {
-                if (contest.contestId == action.payload.contestId && contest.teamHash == action.payload.teamHash) {
-                    contest.teamScore = action.payload.teamScore
-                    return contest
-                } else {
-                    return contest
-                }
-            })
+        addTeamScore: (state, action: PayloadAction<UserContestPayload>) => {
+            const isPrivateUser = action.payload.isPrivateUser
+            const userIdentityString = action.payload.identityString
+            const contestToUpdate = action.payload.contest
+            const users = state.filter(
+                (user) => user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser
+            )
+            //length = 1 signify user is already in the state object
+            if (users.length == 1) {
+                //check if contestToUpdate already exist/joined
+                const userContests = users[0]!.contests.map((contest) => {
+                    if (
+                        contest.matchId == contestToUpdate.matchId &&
+                        contest.contestId == contestToUpdate.contestId &&
+                        contest.team == contestToUpdate.team &&
+                        contest.teamHash == contestToUpdate.teamHash
+                    ) {
+                        contest.teamScore = contestToUpdate.teamScore
+                        return contest
+                    } else {
+                        return contest
+                    }
+                })
+
+                users[0]!.contests = userContests
+                return [...state, users[0]!]
+            } else {
+                return [
+                    ...state,
+                    { isPrivateUser: isPrivateUser, identityString: userIdentityString, contests: [contestToUpdate] }
+                ]
+            }
         }
     }
 })
-export const { changeUserIdentity, addContest, addTeamAndTeamHash, addTeamScore } = userSlice.actions
+export const { addUser, joinContest, addTeamAndTeamHash, addTeamScore } = usersSlice.actions
 
-export default userSlice.reducer
-
-export const selectUserIdentity = (state: RootState) => state.user.identityString
-export const selectContests = (state: RootState) => state.user.contests
+export default usersSlice.reducer
+export const selectUsersDetails = (state: RootState) => state.usersDetails
+//export const selectUserIdentity = (state: RootState) => state.users.identityString
+//export const selectContests = (state: RootState) => state.users.contests

@@ -36,14 +36,15 @@ import { getTrueFantasySportContract } from "../walletUtils/MetaMaskUtils"
 import detectEthereumProvider from "@metamask/detect-provider"
 import { parseBytes32String } from "ethers/lib/utils"
 import { Identity } from "@semaphore-protocol/identity"
-import { selectAccount } from "../redux_slices/accountSlice"
-import { selectIdentity } from "../redux_slices/identitySlice"
+import { selectAccounts } from "../redux_slices/accountSlice"
+import { selectCurrentIdentity } from "../redux_slices/identitySlice"
 import { useSelector, useDispatch } from "react-redux"
 import { MyTeam } from "../utils/MyTeam"
 import { Fixture, SquadInfo } from "../Model/model"
 import { calculateMyTeamHash } from "../utils/poseidenUtil"
 import { useAppDispatch } from "../app/hooks"
-import { addTeamAndTeamHash, Contest } from "../redux_slices/userSlice"
+import { addTeamAndTeamHash, Contest, UserContestPayload } from "../redux_slices/userSlice"
+import { selectPrivacyMode } from "../redux_slices/transactionPrivacySlice"
 
 function CreateTeam(props: {
     isOpen: boolean
@@ -53,9 +54,9 @@ function CreateTeam(props: {
     contestId: string
     onClose
 }) {
-    const _accounts = useSelector(selectAccount)
-
-    const _identityString: string = useSelector(selectIdentity)
+    const _accounts = useSelector(selectAccounts)
+    const isPrivacyMode = useSelector(selectPrivacyMode)
+    const _identityString: string = useSelector(selectCurrentIdentity)
     const [_identityCommitment, setIdentityCommitment] = useState("")
 
     let contestId = props.contestId
@@ -162,7 +163,12 @@ function CreateTeam(props: {
                 team: myTeam,
                 teamHash: myTeamHash.toString()
             }
-            dispatch(addTeamAndTeamHash(contestState))
+            const userContest: UserContestPayload = {
+                isPrivateUser: isPrivacyMode,
+                identityString: _identityString,
+                contest: contestState
+            }
+            dispatch(addTeamAndTeamHash(userContest))
             props.onClose()
         } else {
             window.alert("Please choose a total of 11 players")
