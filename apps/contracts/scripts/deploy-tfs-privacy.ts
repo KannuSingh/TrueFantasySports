@@ -17,7 +17,7 @@ main()
         console.error(error)
         process.exit(1)
     })
-
+/*
 var inputJson = {
     team: [
         [1, 200],
@@ -86,7 +86,7 @@ var inputJson = {
     matchIdentifier: 1,
     secretIdentity: 1
 }
-
+*/
 //let myTeam: MyTeam = Object.assign({}, inputJson)
 //console.log(calculateMyTeamHash(myTeam))
 //console.log("Hash of 1,1 : " + poseidon([1, 1]))

@@ -88,9 +88,11 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
 
         const ethereum = (await detectEthereumProvider()) as any
         const contract = getTrueFantasySportV1Contract(ethereum)
+
         const contests = await contract!.queryFilter(
             contract!.filters.ContestCreated(null, null, utils.hexlify(BigInt(props.matchId!)))
         )
+        console.log("got the contract")
         console.log("_contests", contests)
         const members = await contract!.queryFilter(contract!.filters.MemberAdded())
         // console.log("Contests : " + contests)
@@ -124,7 +126,7 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
                 } else {
                     contests = await getTFSV1Contests()
                 }
-                console.log(contests)
+                console.log("contest", contests)
                 setContests(contests)
                 setLatestBlockTimeStamp(await latestBlockTimestamp())
             }
