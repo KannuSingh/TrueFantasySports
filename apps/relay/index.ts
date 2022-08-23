@@ -3,7 +3,7 @@ import express from "express"
 import { cricketRouter } from "./src/routes/cricket.routes"
 import { tfsContractRouter } from "./src/routes/trueFantasySports.routes"
 
-const port = process.env.PORT
+const { port } = new URL(process.env.RELAY_URL!)
 
 const app = express()
 
@@ -19,5 +19,5 @@ app.use("/api/cricket", cricketRouter)
  * Server Activation
  */
 app.listen(port, () => {
-    console.info(`Started HTTP relay API at ${port}/`)
+    console.info(`Started HTTP relay API at ${process.env.RELAY_URL}/`)
 })

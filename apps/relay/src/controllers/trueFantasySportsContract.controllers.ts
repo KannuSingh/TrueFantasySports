@@ -4,7 +4,7 @@ import { abi as contractAbi } from "../../public/contracts/TrueFantasySports.sol
 import { config as dotenvConfig } from "dotenv"
 import { resolve } from "path"
 
-dotenvConfig({ path: resolve(__dirname, "./../../../../.env") })
+dotenvConfig({ path: resolve(__dirname, "./../../../../../.env") })
 const ethereumURL = process.env.ETHEREUM_URL
 const contractAddress = process.env.TFS_PRIVACY_CONTRACT_ADDRESS
 const ethereumPrivateKey = process.env.ETHEREUM_PRIVATE_KEY
