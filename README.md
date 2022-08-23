@@ -4,8 +4,8 @@
  
 </p>
 
-| The repository is divided into three components: [web app] [relay] and [contracts]. The app for playing fantasy sports anonymously without revealing their original identity using zero knowledge and semaphore Identity. |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The repository is divided into three components: [web app] [relay] and [contracts]. The app is for playing fantasy sports. The project aims to create trustless fantasy sport platform where user don't have to submit their fantasy team inorder to win contest.
+|
 
 ## 🛠 Install
 
