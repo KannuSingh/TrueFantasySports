@@ -1,10 +1,10 @@
 <p align="center">
     <h1 align="center">
-        True Fantasy Sport
+        True Fantasy Sports
  
 </p>
 
-| The repository is divided into three components: [web app] [relay] and [contracts]. The app is for playing fantasy sports. The project aims to create trustless fantasy sport platform where user don't have to submit their fantasy team inorder to win contest.
+| The repository is divided into three components: [web app] [relay] and [contracts]. The app is for playing fantasy sports. The project aims to create trustless fantasy sports platform where user don't have to submit their fantasy team inorder to win contest.
 |
 
 ## 🛠 Install
