@@ -19,7 +19,7 @@ export const getSigner = (_ethereum: any) => {
 
 export const getTrueFantasySportContract = (_ethereum: any) => {
     const ethersProvider = new providers.Web3Provider(_ethereum)
-    return new Contract(process.env.CONTRACT_ADDRESS!, TrueFantasySports.abi, ethersProvider.getSigner())
+    return new Contract(process.env.TFS_PRIVACY_CONTRACT_ADDRESS!, TrueFantasySports.abi, ethersProvider.getSigner())
 }
 
 export const getTrueFantasySportV1Contract = (_ethereum: any) => {
