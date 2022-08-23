@@ -10,7 +10,6 @@ import { resolve } from "path"
 import "solidity-coverage"
 import { config } from "./package.json"
 import "./tasks/accounts"
-import "./tasks/deploy-events"
 import "./tasks/deploy-verifier"
 import "./tasks/deploy-truefantasysports"
 
