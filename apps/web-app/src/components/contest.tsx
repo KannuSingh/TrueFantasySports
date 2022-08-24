@@ -118,7 +118,7 @@ function Contest() {
     }
     const savedTeamHash = getSavedTeamHash(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
     const savedTeam = getSavedTeam(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
-    console.log("Status ", fixture.status)
+
     const getParticipantList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
         const ethereum = (await detectEthereumProvider()) as any
@@ -703,7 +703,8 @@ function Contest() {
                             </VStack>
                         </HStack>
                     </VStack>
-                    {fixture.status != "Finished" ? (
+                    {fixture.status != "Finished" &&
+                    calculateRemainingTimeInMin(_contestDetails.contestTeamSubmissionEndTime) > 0 ? (
                         <HStack>
                             <Button
                                 colorScheme="green"
@@ -844,7 +845,10 @@ function Contest() {
                                         ) : (
                                             <HStack justifyContent="space-between">
                                                 <p>No team submitted for this contest </p>
-                                                {fixture.status != "Finished" ? (
+                                                {fixture.status != "Finished" &&
+                                                calculateRemainingTimeInMin(
+                                                    _contestDetails.contestTeamSubmissionEndTime
+                                                ) > 0 ? (
                                                     <Button onClick={handleCreateTeam} colorScheme="green">
                                                         Create Team
                                                     </Button>
