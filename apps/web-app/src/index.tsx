@@ -4,7 +4,7 @@ import "@fontsource/inter/400.css"
 import { persistStore } from "redux-persist"
 import { PersistGate } from "redux-persist/integration/react"
 import { createRoot } from "react-dom/client"
-import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { HashRouter, Route, Routes } from "react-router-dom"
 import Header from "./components/header"
 import Main from "./components/main"
 import IdentityManager from "./components/identity"
@@ -19,7 +19,7 @@ import Fixtures from "./components/sports/fixtures"
 function App() {
     return (
         <>
-            <BrowserRouter>
+            <HashRouter>
                 <Box minH="100vh" p={3} fontSize="xl">
                     <Header />
                     <hr />
@@ -43,7 +43,7 @@ function App() {
                         />
                     </Routes>
                 </Box>
-            </BrowserRouter>
+            </HashRouter>
         </>
     )
 }
