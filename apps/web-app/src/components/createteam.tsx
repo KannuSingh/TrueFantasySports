@@ -1,14 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useState } from "react"
 import {
     Box,
     Text,
-    VStack,
-    Heading,
-    Tabs,
-    Tab,
-    TabPanel,
-    TabPanels,
-    TabList,
     HStack,
     Flex,
     SimpleGrid,
@@ -22,19 +15,13 @@ import {
     ModalCloseButton,
     ModalBody,
     ModalFooter,
-    useDisclosure,
     ListIcon,
-    Tooltip
+    Tooltip,
+    Alert,
+    AlertIcon
 } from "@chakra-ui/react"
 import { MdCheckCircle, MdAddCircle, MdPerson, MdPersonOutline } from "react-icons/md"
-import { useParams } from "react-router-dom"
-import { getMatch } from "../data/matches"
-import { getSquad } from "../data/squad"
-import { getFantasyScorecard } from "../data/fantasyScorecard"
-import Contests from "./contests"
-import { getTrueFantasySportContract } from "../walletUtils/MetaMaskUtils"
-import detectEthereumProvider from "@metamask/detect-provider"
-import { parseBytes32String } from "ethers/lib/utils"
+
 import { Identity } from "@semaphore-protocol/identity"
 import { selectAccounts } from "../redux_slices/accountSlice"
 import { selectCurrentIdentity } from "../redux_slices/identitySlice"
@@ -59,15 +46,13 @@ function CreateTeam(props: {
     const _identityString: string = useSelector(selectCurrentIdentity)
     const [_identityCommitment, setIdentityCommitment] = useState("")
 
-    let contestId = props.contestId
-    const selectedPlayers = new Array(30).fill(0)
-    const myTeams: MyTeam[] = []
     const [_players, setPlayers] = useState(new Array(60).fill(0))
     const [_matchId, setMatchId] = useState(props.fixture.id)
     const [_captainIndex, setCaptainIndex] = useState(-1)
     const [_viceCaptainIndex, setViceCaptainIndex] = useState(-1)
-    const [_localTeamSquadLength, setLocalTeamSquadLength] = useState<number>()
+    const _localTeamSquadLength = props.localTeamSquad.length
     const [_myTeamHash, setTeamHash] = useState<string>("")
+    const [_errorLog, setErrorLog] = useState<string>("")
     const dispatch = useAppDispatch()
 
     const handlePlayerSelection = (playerOf: string, index: number) => {
@@ -75,6 +60,7 @@ function CreateTeam(props: {
         for (var i = 0; i < _players.length; ++i) {
             if (_players[i] == 1) selectedPlayersCount++
         }
+        console.log("selected Player count : ", selectedPlayersCount)
         if (selectedPlayersCount < 11) {
             let myTeam = [..._players]
             if (playerOf == "host") {
@@ -84,7 +70,7 @@ function CreateTeam(props: {
             }
             setPlayers(myTeam)
         } else {
-            console.log("Can not select more that eleven (11) players")
+            setErrorLog("Can not select more that eleven (11) players")
         }
     }
     const handlePlayerDeSelection = (playerOf: string, index: number) => {
@@ -101,21 +87,33 @@ function CreateTeam(props: {
             }
             setPlayers(myTeam)
         } else {
-            console.log("Can not select more that eleven (11) players")
+            setErrorLog("Can not select more that eleven (11) players")
         }
     }
     const handleViceCaptain = (playerOf: string, index: number) => {
         if (playerOf == "host") {
+            if (index == _captainIndex) {
+                setCaptainIndex(-1)
+            }
             setViceCaptainIndex(index)
         } else if (playerOf == "opponent") {
+            if (_localTeamSquadLength + index == _captainIndex) {
+                setCaptainIndex(-1)
+            }
             setViceCaptainIndex(_localTeamSquadLength! + index)
         }
     }
     const handleCaptain = (playerOf: string, index: number) => {
         if (playerOf == "host") {
+            if (index == _viceCaptainIndex) {
+                setViceCaptainIndex(-1)
+            }
             setCaptainIndex(index)
         } else if (playerOf == "opponent") {
-            setCaptainIndex(_localTeamSquadLength! + index)
+            if (_localTeamSquadLength + index == _viceCaptainIndex) {
+                setViceCaptainIndex(-1)
+            }
+            setCaptainIndex(_localTeamSquadLength + index)
         }
     }
 
@@ -125,51 +123,55 @@ function CreateTeam(props: {
         for (var i = 0; i < _players.length; ++i) {
             if (_players[i] == 1) selectedPlayersCount++
         }
-        if (selectedPlayersCount == 11 && _captainIndex != -1 && _viceCaptainIndex != -1) {
-            let myTeamPlayers: number[][] = new Array(60)
-            const selectedPlayerIdentifier = 1
-            for (let i = 0; i < _players.length; ++i) {
-                myTeamPlayers[i] = new Array(2)
-                if (_players[i] == 1) {
-                    myTeamPlayers[i][0] = selectedPlayerIdentifier
-                    if (i == _captainIndex) {
-                        myTeamPlayers[i][1] = 200
-                    } else if (i == _viceCaptainIndex) {
-                        myTeamPlayers[i][1] = 150
+        if (selectedPlayersCount == 11) {
+            if (_captainIndex != -1 && _viceCaptainIndex != -1) {
+                let myTeamPlayers: number[][] = new Array(60)
+                const selectedPlayerIdentifier = 1
+                for (let i = 0; i < _players.length; ++i) {
+                    myTeamPlayers[i] = new Array(2)
+                    if (_players[i] == 1) {
+                        myTeamPlayers[i][0] = selectedPlayerIdentifier
+                        if (i == _captainIndex) {
+                            myTeamPlayers[i][1] = 200
+                        } else if (i == _viceCaptainIndex) {
+                            myTeamPlayers[i][1] = 150
+                        } else {
+                            myTeamPlayers[i][1] = 100
+                        }
                     } else {
+                        myTeamPlayers[i][0] = 0
                         myTeamPlayers[i][1] = 100
                     }
-                } else {
-                    myTeamPlayers[i][0] = 0
-                    myTeamPlayers[i][1] = 100
                 }
+                const identity = new Identity(_identityString)
+                var myTeam: MyTeam = {
+                    team: myTeamPlayers,
+                    decimal: 2,
+                    selectedPlayerIdentifier: selectedPlayerIdentifier,
+                    matchIdentifier: _matchId,
+                    secretIdentity: 1 //hardcoding for now
+                }
+                const myTeamHash = calculateMyTeamHash(myTeam)
+
+                console.log("Setting my Team hash : " + myTeamHash)
+                setTeamHash(myTeamHash.toString())
+
+                const contestState: Contest = {
+                    matchId: _matchId!.toString(),
+                    contestId: props.contestId!,
+                    team: myTeam,
+                    teamHash: myTeamHash.toString()
+                }
+                const userContest: UserContestPayload = {
+                    isPrivateUser: isPrivacyMode,
+                    identityString: _identityString,
+                    contest: contestState
+                }
+                dispatch(addTeamAndTeamHash(userContest))
+                props.onClose()
+            } else {
+                setErrorLog("Please select Captain and ViceCaptain both.")
             }
-            const identity = new Identity(_identityString)
-            var myTeam: MyTeam = {
-                team: myTeamPlayers,
-                decimal: 2,
-                selectedPlayerIdentifier: selectedPlayerIdentifier,
-                matchIdentifier: _matchId,
-                secretIdentity: 1 //hardcoding for now
-            }
-            const myTeamHash = calculateMyTeamHash(myTeam)
-            //console.log(myTeamHash)
-            console.log("Setting my Team hash : " + myTeamHash)
-            setTeamHash(myTeamHash.toString())
-            // const myTeamPoseidenHash = calculateMyTeamHash(myTeam)
-            const contestState: Contest = {
-                matchId: _matchId!.toString(),
-                contestId: props.contestId!,
-                team: myTeam,
-                teamHash: myTeamHash.toString()
-            }
-            const userContest: UserContestPayload = {
-                isPrivateUser: isPrivacyMode,
-                identityString: _identityString,
-                contest: contestState
-            }
-            dispatch(addTeamAndTeamHash(userContest))
-            props.onClose()
         } else {
             window.alert("Please choose a total of 11 players")
         }
@@ -181,10 +183,18 @@ function CreateTeam(props: {
                 <ModalHeader>Create Team</ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>
+                    {_errorLog != "" ? (
+                        <Alert status="error">
+                            <AlertIcon />
+                            {_errorLog}
+                        </Alert>
+                    ) : (
+                        <></>
+                    )}
                     <SimpleGrid columns={2} spacing={4}>
                         <Box>
                             <Text bg="blue" textAlign="center">
-                                {props.fixture.localteam.name}({props.localTeamSquad.length}
+                                {props.fixture.localteam.name}({props.localTeamSquad.length})
                             </Text>
                             <List key={"host"} spacing={2}>
                                 {props.localTeamSquad.map((player, index) => (
