@@ -146,7 +146,7 @@ function Contest() {
             members = await contract.queryFilter(contract.filters.TeamPosted(utils.hexlify(BigInt(_contestId!))))
             return members.map((m) => ({
                 contestId: m.args![0],
-                memberUID: m.args![1],
+                memberUID: m.args![1].toString().toLowerCase(),
                 teamHash: m.args![2]
             }))
         }
@@ -614,6 +614,7 @@ function Contest() {
         setFantasyScorecard(playersScoreInMatch)
         console.log(playersScoreInMatch.length)
     }
+
     return (
         <VStack spacing={2}>
             <VStack spacing={2}>
@@ -722,7 +723,7 @@ function Contest() {
                                 isDisabled={
                                     _loading ||
                                     !isCurrentUserAParticipant() ||
-                                    calculateRemainingTimeInMin(_contestDetails.contestEndTime) < 0 ||
+                                    calculateRemainingTimeInMin(_contestDetails.contestEndTime) > 0 ||
                                     _yourScore < _highestScore ||
                                     _fantasyScorecard.length != 60
                                 }
