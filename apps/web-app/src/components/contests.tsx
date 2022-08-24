@@ -38,8 +38,9 @@ import { formatBytes32String, parseBytes32String } from "ethers/lib/utils"
 import { Identity } from "@semaphore-protocol/identity"
 import { selectPrivacyMode } from "../redux_slices/transactionPrivacySlice"
 import { selectCurrentIdentity } from "../redux_slices/identitySlice"
+import { selectMetaMaskConnected } from "../redux_slices/metamaskSlice"
 
-function Contests(props: { matchId: number | undefined; handleContestClick }) {
+function Contests(props: { matchId: number | undefined; createContestEnabled: boolean; handleContestClick }) {
     const _accounts: string[] = useSelector(selectAccounts)
     const { isOpen: isOpenCreateAndJoinContest, onOpen, onClose: onCreateAndJoinContestModalClose } = useDisclosure()
     const [_loading, setLoading] = useBoolean()
@@ -56,6 +57,7 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
     const [_trueFantasySportsContract, setTrueFantasySportsContract] = useState<Contract>()
     const [_trueFantasySportsV1Contract, setTrueFantasySportsV1Contract] = useState<Contract>()
     const [_tfsTokenContract, setTFSTokenContract] = useState<Contract>()
+    const _metamaskConnected = useSelector(selectMetaMaskConnected)
     const isPrivacyMode = useSelector(selectPrivacyMode)
 
     const getTFSContests = useCallback(async () => {
@@ -93,17 +95,19 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
         )
         console.log("got the contract")
         console.log("_contests", contests)
-        const members = await contract!.queryFilter(contract!.filters.MemberAdded())
-        // console.log("Contests : " + contests)
-        console.log(members)
-        return contests.map((e) => ({
-            contestGroupId: e.args![0].toString(),
-            contestName: parseBytes32String(e.args![1]),
-            matchId: e.args![2].toString(),
-            contestFee: parseInt(e.args![3].toString()) / 10 ** 18,
-            contestTeamSubmissionEndTime: e.args![4].toString(),
-            members: members.filter((m) => m.args![0].eq(e.args![0])).map((m) => m.args![1].toString())
-        }))
+        if (contests.length > 0) {
+            const members = await contract!.queryFilter(contract!.filters.MemberAdded())
+            // console.log("Contests : " + contests)
+            console.log(members)
+            return contests.map((e) => ({
+                contestGroupId: e.args![0].toString(),
+                contestName: parseBytes32String(e.args![1]),
+                matchId: e.args![2].toString(),
+                contestFee: parseInt(e.args![3].toString()) / 10 ** 18,
+                contestTeamSubmissionEndTime: e.args![4].toString(),
+                members: members.filter((m) => m.args![0].eq(e.args![0])).map((m) => m.args![1].toString())
+            }))
+        }
 
         return []
     }, [_accounts])
@@ -118,16 +122,22 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
             setTrueFantasySportsV1Contract(tfsV1Contract)
             setTFSTokenContract(tfsTokenContract)
 
-            if (_accounts[0]) {
+            if (!_metamaskConnected) {
+                setLog("Please connect your metamask to view contests.")
+            } else if (_accounts[0]) {
                 let contests: any[] = []
                 if (isPrivacyMode) {
                     contests = await getTFSContests()
                 } else {
                     contests = await getTFSV1Contests()
                 }
-                console.log("contest", contests)
-                setContests(contests)
-                setLatestBlockTimeStamp(await latestBlockTimestamp())
+                if (contests.length == 0) {
+                    setLog("No contests available for this match")
+                } else {
+                    console.log("contest", contests)
+                    setContests(contests)
+                    setLatestBlockTimeStamp(await latestBlockTimestamp())
+                }
             }
         })()
     }, [_accounts, _identityString, isPrivacyMode])
@@ -280,6 +290,7 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
 
         return parseInt(latestBlock.timestamp, 16)
     }
+    console.log(props.createContestEnabled)
     return (
         <>
             {_loading ? (
@@ -294,9 +305,13 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
                     {_contests.length > 0 ? (
                         <>
                             <HStack justifyContent="end">
-                                <Button isDisabled={_loading} onClick={handleCreateContest} colorScheme="green">
-                                    Create Contest
-                                </Button>
+                                {_metamaskConnected && props.createContestEnabled ? (
+                                    <Button isDisabled={_loading} onClick={handleCreateContest} colorScheme="green">
+                                        Create Contest
+                                    </Button>
+                                ) : (
+                                    <></>
+                                )}
                             </HStack>
                             <TableContainer>
                                 <Table size="sm" variant="striped" colorScheme="teal">
@@ -339,10 +354,14 @@ function Contests(props: { matchId: number | undefined; handleContestClick }) {
                         </>
                     ) : (
                         <HStack justifyContent="space-between">
-                            <p>No contests available for this match </p>
-                            <Button isDisabled={_loading} onClick={handleCreateContest} colorScheme="green">
-                                Create Contest
-                            </Button>
+                            <p>{_log}</p>
+                            {_metamaskConnected && props.createContestEnabled ? (
+                                <Button isDisabled={_loading} onClick={handleCreateContest} colorScheme="green">
+                                    Create Contest
+                                </Button>
+                            ) : (
+                                <></>
+                            )}
                         </HStack>
                     )}
 

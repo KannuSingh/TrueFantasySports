@@ -15,13 +15,15 @@ import {
     List,
     ListItem,
     Image,
-    Divider
+    Divider,
+    Alert,
+    AlertIcon
 } from "@chakra-ui/react"
 import { useParams } from "react-router-dom"
 import { useNavigate } from "react-router-dom"
 import Contests from "./contests"
 import { getSimpleDate } from "../utils/commonUtils"
-import { Fixture, SeasonTeam, SquadInfo } from "../Model/model"
+import { Fixture, SeasonTeam, SquadInfo } from "../models/model"
 
 function Match() {
     let params = useParams()
@@ -124,9 +126,17 @@ function Match() {
         })
     }
     return (
-        <VStack spacing={5}>
+        <VStack w="100%" spacing={5}>
             {_fixture != null ? (
                 <>
+                    {_fixture.status == "Finished" ? (
+                        <Alert status="info">
+                            <AlertIcon />
+                            {"Fixture already finished."}
+                        </Alert>
+                    ) : (
+                        <></>
+                    )}
                     <VStack spacing={2}>
                         <Heading as="h5" size="lg">
                             {_fixture.localteam.name} vs {_fixture.visitorteam.name} - {_fixture!.round}
@@ -172,7 +182,11 @@ function Match() {
 
                         <TabPanels>
                             <TabPanel>
-                                <Contests matchId={_fixtureId!} handleContestClick={handleContestClick} />
+                                <Contests
+                                    matchId={_fixtureId!}
+                                    createContestEnabled={_fixture.status != "Finished"}
+                                    handleContestClick={handleContestClick}
+                                />
                             </TabPanel>
                             <TabPanel>
                                 <SimpleGrid columns={2} spacing={4}>

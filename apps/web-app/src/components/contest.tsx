@@ -23,7 +23,9 @@ import {
     useBoolean,
     Divider,
     Image,
-    Spinner
+    Spinner,
+    Alert,
+    AlertIcon
 } from "@chakra-ui/react"
 import { useLocation, useParams } from "react-router-dom"
 import { generateNullifierHash, generateProof, packToSolidityProof } from "@semaphore-protocol/proof"
@@ -42,7 +44,7 @@ import { calculateMyTeamHash } from "../utils/poseidenUtil"
 import { Contract, Event, utils } from "ethers"
 import { Group } from "@semaphore-protocol/group"
 import { Contest, selectUsersDetails } from "../redux_slices/userSlice"
-import { Fixture, SeasonTeam, SquadInfo } from "../Model/model"
+import { Fixture, SeasonTeam, SquadInfo } from "../models/model"
 import { getSimpleDate } from "../utils/commonUtils"
 import CreateTeam from "./createteam"
 import ViewMyTeam from "./viewMyTeam"
@@ -116,7 +118,7 @@ function Contest() {
     }
     const savedTeamHash = getSavedTeamHash(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
     const savedTeam = getSavedTeam(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
-
+    console.log("Status ", fixture.status)
     const getParticipantList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
         const ethereum = (await detectEthereumProvider()) as any
@@ -617,6 +619,14 @@ function Contest() {
 
     return (
         <VStack spacing={2}>
+            {fixture.status == "Finished" ? (
+                <Alert status="info">
+                    <AlertIcon />
+                    {"Fixture already finished."}
+                </Alert>
+            ) : (
+                <></>
+            )}
             <VStack spacing={2}>
                 <Heading as="h5" size="lg">
                     {fixture.localteam.name} vs {fixture.visitorteam.name} - {fixture!.round}
@@ -693,48 +703,53 @@ function Contest() {
                             </VStack>
                         </HStack>
                     </VStack>
-                    <HStack>
-                        <Button
-                            colorScheme="green"
-                            isDisabled={_loading || isCurrentUserAParticipant()}
-                            onClick={handleContestJoin}
-                        >
-                            {_participants.includes(_identityCommitment) || _participants.includes(_accounts[0])
-                                ? "Already Joined"
-                                : "Join Contest"}
-                        </Button>
-                        <Button
-                            colorScheme="green"
-                            isDisabled={
-                                !isCurrentUserAParticipant ||
-                                _loading ||
-                                !_isUserSubmittedTeam ||
-                                calculateRemainingTimeInMin(_contestDetails.contestEndTime) < 0 ||
-                                _fantasyScorecard.length != 60 ||
-                                _yourScore > 0
-                            }
-                            onClick={handleCalcScoreAndGenProof}
-                        >
-                            Generate Your Score Proof and Submit
-                        </Button>
-                        {!isPrivacyMode ? (
+                    {fixture.status != "Finished" ? (
+                        <HStack>
+                            <Button
+                                colorScheme="green"
+                                isDisabled={_loading || isCurrentUserAParticipant()}
+                                onClick={handleContestJoin}
+                            >
+                                {_participants.includes(_identityCommitment) || _participants.includes(_accounts[0])
+                                    ? "Already Joined"
+                                    : "Join Contest"}
+                            </Button>
                             <Button
                                 colorScheme="green"
                                 isDisabled={
+                                    !isCurrentUserAParticipant ||
                                     _loading ||
-                                    !isCurrentUserAParticipant() ||
-                                    calculateRemainingTimeInMin(_contestDetails.contestEndTime) > 0 ||
-                                    _yourScore < _highestScore ||
-                                    _fantasyScorecard.length != 60
+                                    !_isUserSubmittedTeam ||
+                                    calculateRemainingTimeInMin(_contestDetails.contestEndTime) < 0 ||
+                                    _fantasyScorecard.length != 60 ||
+                                    _yourScore > 0
                                 }
-                                onClick={handleWinningClaim}
+                                onClick={handleCalcScoreAndGenProof}
                             >
-                                Claim Winning Amount
+                                Generate Your Score Proof and Submit
                             </Button>
-                        ) : (
-                            <></>
-                        )}
-                    </HStack>
+                            {!isPrivacyMode ? (
+                                <Button
+                                    colorScheme="green"
+                                    isDisabled={
+                                        _loading ||
+                                        !isCurrentUserAParticipant() ||
+                                        calculateRemainingTimeInMin(_contestDetails.contestEndTime) > 0 ||
+                                        _yourScore < _highestScore ||
+                                        _fantasyScorecard.length != 60
+                                    }
+                                    onClick={handleWinningClaim}
+                                >
+                                    Claim Winning Amount
+                                </Button>
+                            ) : (
+                                <></>
+                            )}
+                        </HStack>
+                    ) : (
+                        <></>
+                    )}
+
                     <Tabs w="100%">
                         <TabList justifyContent="space-around">
                             <Tab flexGrow="1">My Team</Tab>
@@ -829,9 +844,13 @@ function Contest() {
                                         ) : (
                                             <HStack justifyContent="space-between">
                                                 <p>No team submitted for this contest </p>
-                                                <Button onClick={handleCreateTeam} colorScheme="green">
-                                                    Create Team
-                                                </Button>
+                                                {fixture.status != "Finished" ? (
+                                                    <Button onClick={handleCreateTeam} colorScheme="green">
+                                                        Create Team
+                                                    </Button>
+                                                ) : (
+                                                    <></>
+                                                )}
                                             </HStack>
                                         )}
                                         <CreateTeam
