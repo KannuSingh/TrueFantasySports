@@ -164,93 +164,87 @@ function Header() {
 
     return (
         <Flex justify="space-between" align="center" p={5}>
-            <Heading as="h1">True Fantasy Sport</Heading>
-            <Box as="div" alignSelf="center">
-                <HStack>
-                    <FormControl display="flex" justifyContent="end" alignItems="center">
-                        <FormLabel htmlFor="transaction-privacy" mb="0">
-                            {_isPrivacyMode ? "Privacy" : "Public"}
-                        </FormLabel>
-                        <Switch
-                            isChecked={_isPrivacyMode}
-                            onChange={handlePrivacyModeToggle}
-                            id="transaction-privacy"
-                        />
-                    </FormControl>
-                    <Select
-                        value={_chainId}
-                        onChange={(e) => {
-                            setChainId(e.target.value)
-                        }}
-                        width="50%"
-                    >
-                        <option value="4">Rinkbey testnet</option>
-                    </Select>
-                    {_chainId != "" ? <Text fontSize="xs">Chain: {_chainId}</Text> : <></>}
-                    {_accounts[0] ? (
-                        <Text fontSize="xs">Account: {_accounts[0].toString().substring(0, 15)}...</Text>
-                    ) : (
-                        <></>
-                    )}
-                    {_metaMaskInstalled ? (
+            <HStack w="40%" alignSelf="center" spacing="2">
+                <VStack>
+                    <Heading as="h1">True Fantasy Sport</Heading>
+                    {_metaMaskConnected && _accounts[0] ? (
                         <HStack>
-                            {_metaMaskConnected ? (
-                                <>
-                                    <Icon as={MdCircle} color={_metaMaskConnected ? "green" : "red"} />
-                                    <Text fontSize="xs">Connected </Text>
-                                </>
-                            ) : (
-                                <Button onClick={handleConnect}>Connect Metamask</Button>
-                            )}
+                            <Icon as={MdCircle} color="green" />
+                            <Text fontSize="xs">Account: {_accounts[0].toString().substring(0, 15)}...</Text>
                         </HStack>
                     ) : (
-                        <Button onClick={handleInstall}>Install MetaMask</Button>
-                    )}
-                    {_isPrivacyMode && _identityString != "" ? (
-                        <Avatar size="md" name={_name} />
-                    ) : _isPrivacyMode && _identityString == "" ? (
-                        <Button colorScheme="green" onClick={handleLogin}>
-                            Login
-                        </Button>
-                    ) : (
                         <></>
                     )}
-                    // Modal for Login ( Login Form)
-                    <Modal isOpen={isOpen} onClose={onClose}>
-                        <ModalOverlay />
-                        <ModalContent>
-                            <ModalHeader>Login</ModalHeader>
-                            <ModalCloseButton />
-                            <ModalBody>
-                                <VStack>
-                                    <Input
-                                        htmlSize={25}
-                                        width="auto"
-                                        placeholder="Enter sudo name "
-                                        value={_sudoName}
-                                        onChange={(e) => setSudoName(e.target.value)}
-                                    />
-                                    <Input
-                                        htmlSize={25}
-                                        width="auto"
-                                        placeholder="Enter secret text / password"
-                                        value={_password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                    />
-                                </VStack>
-                            </ModalBody>
+                </VStack>
+            </HStack>
+            <HStack w="60%" alignSelf="center" spacing="2">
+                <FormControl display="flex" justifyContent="end" alignItems="center">
+                    <FormLabel htmlFor="transaction-privacy" mb="0">
+                        {_isPrivacyMode ? "Privacy" : "Public"}
+                    </FormLabel>
+                    <Switch isChecked={_isPrivacyMode} onChange={handlePrivacyModeToggle} id="transaction-privacy" />
+                </FormControl>
+                <Select
+                    value={_chainId}
+                    onChange={(e) => {
+                        setChainId(e.target.value)
+                    }}
+                    w="30%"
+                >
+                    <option value="4">Rinkbey testnet</option>
+                </Select>
+                {_chainId != "" ? <Text fontSize="xs">Chain: {_chainId}</Text> : <></>}
+                {_metaMaskInstalled ? (
+                    <HStack>
+                        {_metaMaskConnected ? <></> : <Button onClick={handleConnect}>Connect Metamask</Button>}
+                    </HStack>
+                ) : (
+                    <Button onClick={handleInstall}>Install MetaMask</Button>
+                )}
+                {_isPrivacyMode && _identityString != "" ? (
+                    <Avatar size="md" name={_name} />
+                ) : _isPrivacyMode && _identityString == "" ? (
+                    <Button colorScheme="green" onClick={handleLogin}>
+                        Login
+                    </Button>
+                ) : (
+                    <></>
+                )}
+                // Modal for Login ( Login Form)
+                <Modal isOpen={isOpen} onClose={onClose}>
+                    <ModalOverlay />
+                    <ModalContent>
+                        <ModalHeader>Login</ModalHeader>
+                        <ModalCloseButton />
+                        <ModalBody>
+                            <VStack>
+                                <Input
+                                    htmlSize={25}
+                                    width="auto"
+                                    placeholder="Enter sudo name "
+                                    value={_sudoName}
+                                    onChange={(e) => setSudoName(e.target.value)}
+                                />
+                                <Input
+                                    htmlSize={25}
+                                    width="auto"
+                                    placeholder="Enter secret text / password"
+                                    value={_password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </VStack>
+                        </ModalBody>
 
-                            <ModalFooter justifyContent="center">
-                                <Button mr={3} colorScheme="blue" onClick={handleIdentityCreation}>
-                                    LOGIN
-                                </Button>
-                                <Button onClick={onClose}>Close</Button>
-                            </ModalFooter>
-                        </ModalContent>
-                    </Modal>
-                    <ColorModeSwitcher alignSelf="center" />
-                </HStack>
-            </Box>
+                        <ModalFooter justifyContent="center">
+                            <Button mr={3} colorScheme="blue" onClick={handleIdentityCreation}>
+                                LOGIN
+                            </Button>
+                            <Button onClick={onClose}>Close</Button>
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
+                <ColorModeSwitcher alignSelf="center" />
+            </HStack>
         </Flex>
     )
 }
