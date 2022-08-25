@@ -39,6 +39,8 @@ import { Identity } from "@semaphore-protocol/identity"
 import { selectPrivacyMode } from "../redux_slices/transactionPrivacySlice"
 import { selectCurrentIdentity } from "../redux_slices/identitySlice"
 import { selectMetaMaskConnected } from "../redux_slices/metamaskSlice"
+import { useAppDispatch } from "../app/hooks"
+import { addUser, Contest, joinContest, UserContestPayload } from "../redux_slices/userSlice"
 
 function Contests(props: { matchId: number | undefined; createContestEnabled: boolean; handleContestClick }) {
     const _accounts: string[] = useSelector(selectAccounts)
@@ -59,6 +61,7 @@ function Contests(props: { matchId: number | undefined; createContestEnabled: bo
     const [_tfsTokenContract, setTFSTokenContract] = useState<Contract>()
     const _metamaskConnected = useSelector(selectMetaMaskConnected)
     const isPrivacyMode = useSelector(selectPrivacyMode)
+    const dispatch = useAppDispatch()
 
     const getTFSContests = useCallback(async () => {
         console.log("getTFSContests when Account :" + _accounts[0])
@@ -199,6 +202,7 @@ function Contests(props: { matchId: number | undefined; createContestEnabled: bo
                         if (status === 200) {
                             setLog("Successfully created a Contest...")
                             setLog("Loading Contests...")
+
                             _trueFantasySportsContract!.on(
                                 "ContestCreated",
                                 (
@@ -266,10 +270,21 @@ function Contests(props: { matchId: number | undefined; createContestEnabled: bo
                                 members: [_accounts[0]]
                             }
                             let contests = [..._contests, newContest]
+                            const contestPayload: Contest = {
+                                matchId: matchId.toString(),
+                                contestId: contestGroupId.toString()
+                            }
+                            const UserContestPayload: UserContestPayload = {
+                                identityString: isPrivacyMode ? _identityString : _accounts[0],
+                                isPrivateUser: isPrivacyMode,
+                                contest: contestPayload
+                            }
+                            dispatch(joinContest(UserContestPayload))
                             setContests(contests)
                             setLoading.off()
                         }
                     )
+
                     console.log("Success creating contest request")
                 }
                 onCreateAndJoinContestModalClose()

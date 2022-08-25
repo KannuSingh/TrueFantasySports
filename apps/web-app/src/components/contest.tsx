@@ -51,6 +51,7 @@ import ViewMyTeam from "./viewMyTeam"
 import FantasyScorecard from "./fantasyScorecard"
 import { selectPrivacyMode } from "../redux_slices/transactionPrivacySlice"
 import { selectCurrentIdentity } from "../redux_slices/identitySlice"
+import { useAppDispatch } from "../app/hooks"
 
 interface ContestParams {
     fixture: Fixture
@@ -62,6 +63,7 @@ function Contest() {
     let params = useParams()
 
     let state: ContestParams = useLocation()!.state!
+    const dispatch = useAppDispatch()
     const { fixture, localTeam, visitorTeam } = state
     const [_log, setLog] = useState("")
     const _contestId = params.contestId
@@ -117,8 +119,11 @@ function Contest() {
         }
         return null
     }
-    const savedTeamHash = getSavedTeamHash(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
-    const savedTeam = getSavedTeam(isPrivacyMode, _identityString, _contestId!, _matchId.toString())
+    const getCurrentUserIdentity = () => {
+        return isPrivacyMode ? _identityString : _accounts[0]
+    }
+    const savedTeamHash = getSavedTeamHash(isPrivacyMode, getCurrentUserIdentity(), _contestId!, _matchId.toString())
+    const savedTeam = getSavedTeam(isPrivacyMode, getCurrentUserIdentity(), _contestId!, _matchId.toString())
 
     const getParticipantList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])

@@ -164,7 +164,7 @@ function CreateTeam(props: {
                 }
                 const userContest: UserContestPayload = {
                     isPrivateUser: isPrivacyMode,
-                    identityString: _identityString,
+                    identityString: isPrivacyMode ? _identityString : _accounts[0],
                     contest: contestState
                 }
                 dispatch(addTeamAndTeamHash(userContest))

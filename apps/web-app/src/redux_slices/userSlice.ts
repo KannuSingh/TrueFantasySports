@@ -49,91 +49,64 @@ export const usersSlice = createSlice({
             const isPrivateUser = action.payload.isPrivateUser
             const userIdentityString = action.payload.identityString
             const contestToJoin = action.payload.contest
-            const users = state.filter(
-                (user) => user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser
-            )
-            //length = 1 signify user is already in the state object
-            if (users.length == 1) {
-                //check if contestToJoin already exist/joined
-                const contestAlreadyExist: boolean =
-                    users[0]!.contests.filter((contest) => {
-                        contest.matchId == contestToJoin.matchId && contest.contestId == contestToJoin.contestId
-                    }).length > 0
-                if (contestAlreadyExist) {
-                    return state
-                } else {
-                    users[0]!.contests = [...users[0]!.contests, contestToJoin]
-                    return [...state, users[0]!]
+            let newState = [...state]
+            state.map((user) => {
+                if (user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser) {
+                    user.contests = [...user.contests, contestToJoin]
                 }
-            } else {
-                return [
-                    ...state,
-                    { isPrivateUser: isPrivateUser, identityString: userIdentityString, contests: [contestToJoin] }
-                ]
-            }
+            })
         },
 
         addTeamAndTeamHash: (state, action: PayloadAction<UserContestPayload>) => {
             const isPrivateUser = action.payload.isPrivateUser
             const userIdentityString = action.payload.identityString
             const contestToUpdate = action.payload.contest
-            const users = state.filter(
-                (user) => user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser
-            )
-            //length = 1 signify user is already in the state object
-            if (users.length == 1) {
-                //check if contestToUpdate already exist/joined
-                const userContests = users[0]!.contests.map((contest) => {
-                    if (contest.matchId == contestToUpdate.matchId && contest.contestId == contestToUpdate.contestId) {
-                        contest.team = contestToUpdate.team
-                        contest.teamHash = contestToUpdate.teamHash
-                        return contest
-                    } else {
-                        return contest
-                    }
-                })
+            state.map((user) => {
+                if (user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser) {
+                    user.contests = user.contests.map((contest) => {
+                        if (
+                            contest.matchId == contestToUpdate.matchId &&
+                            contest.contestId == contestToUpdate.contestId
+                        ) {
+                            contest.team = contestToUpdate.team
+                            contest.teamHash = contestToUpdate.teamHash
+                            return contest
+                        } else {
+                            return contest
+                        }
+                    })
 
-                users[0]!.contests = userContests
-                return [...state, users[0]!]
-            } else {
-                return [
-                    ...state,
-                    { isPrivateUser: isPrivateUser, identityString: userIdentityString, contests: [contestToUpdate] }
-                ]
-            }
+                    return user
+                } else {
+                    return user
+                }
+            })
         },
         addTeamScore: (state, action: PayloadAction<UserContestPayload>) => {
             const isPrivateUser = action.payload.isPrivateUser
             const userIdentityString = action.payload.identityString
             const contestToUpdate = action.payload.contest
-            const users = state.filter(
-                (user) => user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser
-            )
-            //length = 1 signify user is already in the state object
-            if (users.length == 1) {
-                //check if contestToUpdate already exist/joined
-                const userContests = users[0]!.contests.map((contest) => {
-                    if (
-                        contest.matchId == contestToUpdate.matchId &&
-                        contest.contestId == contestToUpdate.contestId &&
-                        contest.team == contestToUpdate.team &&
-                        contest.teamHash == contestToUpdate.teamHash
-                    ) {
-                        contest.teamScore = contestToUpdate.teamScore
-                        return contest
-                    } else {
-                        return contest
-                    }
-                })
+            state.map((user) => {
+                if (user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser) {
+                    user.contests = user.contests.map((contest) => {
+                        if (
+                            contest.matchId == contestToUpdate.matchId &&
+                            contest.contestId == contestToUpdate.contestId &&
+                            contest.team == contestToUpdate.team &&
+                            contest.teamHash == contestToUpdate.teamHash
+                        ) {
+                            contest.teamScore = contestToUpdate.teamScore
+                            return contest
+                        } else {
+                            return contest
+                        }
+                    })
 
-                users[0]!.contests = userContests
-                return [...state, users[0]!]
-            } else {
-                return [
-                    ...state,
-                    { isPrivateUser: isPrivateUser, identityString: userIdentityString, contests: [contestToUpdate] }
-                ]
-            }
+                    return user
+                } else {
+                    return user
+                }
+            })
         }
     }
 })
