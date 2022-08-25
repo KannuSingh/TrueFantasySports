@@ -82,6 +82,7 @@ function Contest() {
     const [_contestDetails, setContestDetails] = useState<any>()
     const [_isUserSubmittedTeam, setUserSubmittedTeam] = useState<boolean>()
     const isPrivacyMode = useSelector(selectPrivacyMode)
+    const [_isContestPrizeClaimed, setContestPrizeClaimed] = useState<boolean>()
     const [_latestBlockTimestamp, setLatestBlockTimeStamp] = useState(0)
 
     const getSavedTeamHash = (isPrivateUser: boolean, identityString: string, contestId: string, matchId: string) => {
@@ -132,7 +133,7 @@ function Contest() {
 
         return members.map((m) => m.args![2].toString().toLowerCase())
     }, [_accounts, isPrivacyMode])
-    const isContestPrizeClaimed = useCallback(async () => {
+    const isContestPrizeClaimed = async () => {
         console.log("Getting claim prize status when Account :" + _accounts[0])
         const ethereum = (await detectEthereumProvider()) as any
         let contract: Contract | null = null
@@ -144,9 +145,11 @@ function Contest() {
         const claimedPrized = await contract.queryFilter(
             contract.filters.ClaimedPrize(utils.hexlify(BigInt(_contestId!)))
         )
-
-        return claimedPrized.length > 0
-    }, [_accounts, isPrivacyMode])
+        if (claimedPrized.length > 0) {
+            return true
+        }
+        return false
+    }
 
     const getParticipantWithTeamList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
@@ -250,6 +253,8 @@ function Contest() {
                     const participants = await getParticipantList()
                     console.log(participants)
                     setParticipants(participants)
+                    const prizeClaimStatus = await isContestPrizeClaimed()
+                    setContestPrizeClaimed(prizeClaimStatus)
                 }
             }
         })()
@@ -640,7 +645,8 @@ function Contest() {
         setFantasyScorecard(playersScoreInMatch)
         console.log(playersScoreInMatch.length)
     }
-
+    console.log("HasCurrentUserSubmittedTeam : ", hasCurrentUserSubmittedTeam())
+    console.log("isContestPrizeClaimed : ", _isContestPrizeClaimed)
     return (
         <VStack spacing={2}>
             {fixture.status == "Finished" ? (
@@ -765,7 +771,7 @@ function Contest() {
                                         calculateRemainingTimeInMin(_contestDetails.contestEndTime) > 0 ||
                                         _yourScore < _highestScore ||
                                         _fantasyScorecard.length != 60 ||
-                                        isContestPrizeClaimed()
+                                        _isContestPrizeClaimed
                                     }
                                     onClick={handleWinningClaim}
                                 >
