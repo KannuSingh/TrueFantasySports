@@ -323,7 +323,7 @@ function CreateTeam(props: {
 
                 <ModalFooter justifyContent="center">
                     <Button mr={3} colorScheme="blue" onClick={handleTeamCreation}>
-                        Create and Join
+                        Create Team
                     </Button>
                     <Button onClick={props.onClose}>Close</Button>
                 </ModalFooter>

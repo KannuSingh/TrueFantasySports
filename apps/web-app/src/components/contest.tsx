@@ -132,6 +132,21 @@ function Contest() {
 
         return members.map((m) => m.args![2].toString().toLowerCase())
     }, [_accounts, isPrivacyMode])
+    const isContestPrizeClaimed = useCallback(async () => {
+        console.log("Getting claim prize status when Account :" + _accounts[0])
+        const ethereum = (await detectEthereumProvider()) as any
+        let contract: Contract | null = null
+        if (isPrivacyMode) {
+            contract = getTrueFantasySportContract(ethereum)
+        } else {
+            contract = getTrueFantasySportV1Contract(ethereum)
+        }
+        const claimedPrized = await contract.queryFilter(
+            contract.filters.ClaimedPrize(utils.hexlify(BigInt(_contestId!)))
+        )
+
+        return claimedPrized.length > 0
+    }, [_accounts, isPrivacyMode])
 
     const getParticipantWithTeamList = useCallback(async () => {
         console.log("Getting contest when Account :" + _accounts[0])
@@ -431,12 +446,13 @@ function Contest() {
                             teamHash: _teamHash
                         }
                     ])
+                    setLoading.off()
                 })
             }
         } catch (e) {
             console.log(e)
+            setLoading.off()
         }
-        setLoading.off()
     }
     const handleCalcScoreAndGenProof = async () => {
         setLoading.on()
@@ -588,6 +604,14 @@ function Contest() {
             return _participants.includes(_accounts[0])
         }
     }
+    const hasCurrentUserSubmittedTeam = () => {
+        if (isPrivacyMode) {
+            const identity = new Identity(_identityString)
+            return _participants.includes(identity.generateCommitment().toString())
+        } else {
+            return _participantsWithTeam.filter((p) => p.memberUID == _accounts[0]).length > 0
+        }
+    }
     const handleWinningClaim = async () => {
         console.log("handle Winning claim.")
         setLoading.on()
@@ -729,6 +753,9 @@ function Contest() {
                             >
                                 Generate Your Score Proof and Submit
                             </Button>
+                        </HStack>
+                    ) : (
+                        <>
                             {!isPrivacyMode ? (
                                 <Button
                                     colorScheme="green"
@@ -737,7 +764,8 @@ function Contest() {
                                         !isCurrentUserAParticipant() ||
                                         calculateRemainingTimeInMin(_contestDetails.contestEndTime) > 0 ||
                                         _yourScore < _highestScore ||
-                                        _fantasyScorecard.length != 60
+                                        _fantasyScorecard.length != 60 ||
+                                        isContestPrizeClaimed()
                                     }
                                     onClick={handleWinningClaim}
                                 >
@@ -746,9 +774,7 @@ function Contest() {
                             ) : (
                                 <></>
                             )}
-                        </HStack>
-                    ) : (
-                        <></>
+                        </>
                     )}
 
                     <Tabs w="100%">
@@ -812,7 +838,8 @@ function Contest() {
                                                                                     _isUserSubmittedTeam ||
                                                                                     calculateRemainingTimeInMin(
                                                                                         _contestDetails.contestTeamSubmissionEndTime
-                                                                                    ) < 0
+                                                                                    ) < 0 ||
+                                                                                    hasCurrentUserSubmittedTeam()
                                                                                 }
                                                                                 onClick={() =>
                                                                                     handleSubmitTeam(savedTeam)
@@ -848,7 +875,8 @@ function Contest() {
                                                 {fixture.status != "Finished" &&
                                                 calculateRemainingTimeInMin(
                                                     _contestDetails.contestTeamSubmissionEndTime
-                                                ) > 0 ? (
+                                                ) > 0 &&
+                                                !hasCurrentUserSubmittedTeam() ? (
                                                     <Button onClick={handleCreateTeam} colorScheme="green">
                                                         Create Team
                                                     </Button>

@@ -34,7 +34,7 @@ contract TrueFantasySports_V1 {
     /// @param contestId: Group id of the group.
     /// @param memberAddress: address of member.
     event MemberAdded(uint256 indexed contestId,uint256 indexed matchId, address indexed memberAddress);
-    event ClaimedPrize(uint256 indexed contestId, address memberAddress,uint256 amount);
+    event ClaimedPrize(uint256 indexed contestId,address claimInitiator, address winnerAddress,uint256 amount);
     event TeamPosted(uint256 indexed contestId, address indexed memberAddress, bytes32 teamHash);
     event TeamUpdated(uint256 indexed contestId, address indexed memberAddress,  bytes32 teamHash);
     event TeamScore(uint256 indexed contestId, uint256 indexed teamHash, uint256 score);
@@ -170,7 +170,7 @@ contract TrueFantasySports_V1 {
                 address winnerAddress =  contestHighestScoreHolder[_contestId] ;
                 contestWinningAmountClaimed[_contestId] = true;
                 tokenContract.transfer(winnerAddress,contestWinningAmount[_contestId]);
-                emit ClaimedPrize(_contestId, msg.sender,contestWinningAmount[_contestId]);
+                emit ClaimedPrize(_contestId,msg.sender, winnerAddress,contestWinningAmount[_contestId]);
     }
 
     function getHighestScore(uint256 _contestId) public view returns (uint256) {

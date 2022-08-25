@@ -267,6 +267,7 @@ function Contests(props: { matchId: number | undefined; createContestEnabled: bo
                             }
                             let contests = [..._contests, newContest]
                             setContests(contests)
+                            setLoading.off()
                         }
                     )
                     console.log("Success creating contest request")
@@ -277,8 +278,8 @@ function Contests(props: { matchId: number | undefined; createContestEnabled: bo
             }
         } catch (e) {
             console.log(e)
+            setLoading.off()
         }
-        setLoading.off()
     }
 
     const latestBlockTimestamp = async () => {
