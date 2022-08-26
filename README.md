@@ -1,11 +1,33 @@
-<p align="center">
+<p align="center">    
     <h1 align="center">
         True Fantasy Sports
- 
-</p>
+        </h1>
+   </p>     
+    <h4 align="center">Trustless and decentralized fantasy sports platform using zero knowledge proofs</h4>
+The repository is divided into three components: [web app] [relay] and [contracts].
+The app is for playing fantasy sports. The project aims to create trustless fantasy sports platform where user don't have to submit their fantasy team inorder to win contest.
 
-| The repository is divided into three components: [web app] [relay] and [contracts]. The app is for playing fantasy sports. The project aims to create trustless fantasy sports platform where user don't have to submit their fantasy team inorder to win contest.
-|
+**Check out the POC and MVP** [here](https://www.truefantasysports.com)
+
+## Fantasy Sports
+Wikipidea
+> A fantasy sport is a type of game, where participants create virtual teams composed of proxies of real players of a professional sport. These teams compete based on the statistical performance of those players in actual games. This performance is converted into points that are compiled and totaled according to a contest rules selected by each fantasy team's owner.
+
+## Problem with existing web2 platforms
+    * User have to submit theirs team to centralized platform in order to participate
+    * Platform is centralized  and completely controlled by the platform owners
+    * Lack of transparency with respect to how other users joins the contests
+    * End user have to trust platform to be fair and not cheat by creating the same team as theirs and putting it on same contest.
+    * Limited and fixed game plays/rules offered by exisiting platform
+    
+## Solution
+    * Create Trustless and Decentalized fanstasy sports platform using blockchain and zero knowledge proof system
+    * Enabling complete transparency of the system using public blockchain
+    * User don’t have to submit their team. User keeps its team to themself so that no one can copy the user team and cheat.
+    * Using zkSnarks circuits platform proves the score gather by user’s team.
+    * Provide users to pick from different game plays/rule to create contests. 
+
+## Repository
 
 ## 🛠 Install
 
