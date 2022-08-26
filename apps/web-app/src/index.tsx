@@ -7,8 +7,6 @@ import { createRoot } from "react-dom/client"
 import { HashRouter, Route, Routes } from "react-router-dom"
 import Header from "./components/header"
 import Main from "./components/main"
-import IdentityManager from "./components/identity"
-import Matches from "./components/matches"
 import Match from "./components/match"
 import store from "./app/store"
 import { Provider } from "react-redux"
@@ -30,8 +28,6 @@ function App() {
                             <Route path="/cricket/fixtures/:fixtureId" element={<Match />} />
                             <Route path="/cricket/fixtures/:fixtureId/contests/:contestId" element={<Contest />} />
                         </Route>
-                        <Route path="/identity" element={<IdentityManager />} />
-                        <Route path="/matches" element={<Matches />} />
 
                         <Route
                             path="*"

@@ -19,13 +19,12 @@ import {
     Wrap
 } from "@chakra-ui/react"
 import { Link as RouterLink, Outlet, useNavigate } from "react-router-dom"
-import { getMatches } from "../../data/matches"
 
-import { League } from "../../Model/model"
+import { League } from "../../models/model"
 
 function Cricket() {
-    let matches = getMatches()
     const [_leagues, setLeagues] = useState<League[]>([])
+    const [_leagueId, setLeaguesId] = useState<number>()
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -73,6 +72,7 @@ function Cricket() {
 
     const handleLeagueClick = async (leagueId: number) => {
         console.log("League Id: " + leagueId)
+        setLeaguesId(leagueId)
         navigate(`/cricket/leagues/${leagueId}/fixtures`)
         /* const seasons: Season[] | undefined = getAllSeasons(leagueId)
         console.log("SEASONS : " + seasons!.reverse())
@@ -95,12 +95,6 @@ function Cricket() {
         <Flex align="center" justify="center" m={8}>
             <Box w="100%">
                 <VStack spacing={8}>
-                    {/*<VStack w="90%" spacing={5}>
-                        <Heading as="h2" size="xl">
-                           
-                        </Heading>
-                        <Divider orientation="horizontal" />
-                    </VStack>*/}
                     <Grid w="100%" h="80vh" templateRows="repeat(2, 1fr)" templateColumns="repeat(9, 1fr)" gap={4}>
                         <GridItem rowSpan={1} colSpan={2} borderRight="1px" borderColor="gray.200">
                             <VStack spacing={5}>
@@ -137,7 +131,7 @@ function Cricket() {
                             </VStack>
                         </GridItem>
                         <GridItem rowSpan={2} colSpan={5}>
-                            <Outlet />
+                            {_leagueId ? <Outlet /> : <Text>Please select a league</Text>}
                         </GridItem>
                         <GridItem rowSpan={2} colSpan={2} borderLeft="1px" borderColor="gray.200">
                             <Box w="90%">

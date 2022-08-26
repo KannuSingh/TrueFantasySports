@@ -436,12 +436,12 @@ function Contests(props: { matchId: number | undefined; createContestEnabled: bo
                                         />
                                     </SimpleGrid>
                                     <SimpleGrid columns={2} spacing={4}>
-                                        <Text>Contest Entry Fee</Text>
+                                        <Text>Contest Entry Fee (TFS)</Text>
                                         <Input
                                             htmlSize={25}
                                             width="auto"
                                             type="number"
-                                            placeholder="Enter Contest Fee"
+                                            placeholder="Enter Contest Fee (TFS)"
                                             value={_contestEntryFee}
                                             required
                                             onChange={(e) => setContestEntryFee(e.target.valueAsNumber)}
