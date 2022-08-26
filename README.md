@@ -3,30 +3,29 @@
         True Fantasy Sports
         </h1>
    </p>     
-    <h4 align="center">Trustless and decentralized fantasy sports platform using zero knowledge proofs</h4>
+    <h4 align="center">Trustless and decentralized fantasy sports platform using zero-knowledge proofs</h4>
 The repository is divided into three components: [web app] [relay] and [contracts].
-The app is for playing fantasy sports. The project aims to create trustless fantasy sports platform where user don't have to submit their fantasy team inorder to win contest.
+The app is for playing fantasy sports. The project aims to create a trustless fantasy sports platform where users don't have to submit their fantasy team to win contests.
 
 **Check out the POC and MVP** [here](https://www.truefantasysports.com)
 
 ## Fantasy Sports
-Wikipidea
-> A fantasy sport is a type of game, where participants create virtual teams composed of proxies of real players of a professional sport. These teams compete based on the statistical performance of those players in actual games. This performance is converted into points that are compiled and totaled according to a contest rules selected by each fantasy team's owner.
+Wikipedia
+> A fantasy sport is a type of game where participants create virtual teams composed of proxies of real players of a professional sport. These teams compete based on the statistical performance of those players in actual games. This performance is converted into points compiled and totaled according to contest rules selected by each fantasy team's owner.
 
 ## Problem with existing web2 platforms
-    * User have to submit theirs team to centralized platform in order to participate
-    * Platform is centralized  and completely controlled by the platform owners
-    * Lack of transparency with respect to how other users joins the contests
-    * End user have to trust platform to be fair and not cheat by creating the same team as theirs and putting it on same contest.
-    * Limited and fixed game plays/rules offered by exisiting platform
+    * Users have to submit their team to the centralized platform to participate
+    * Platform is centralized  and entirely controlled by the platform owners
+    * Lack of transparency concerning how other users join the contests
+    * End users must trust the platform to be fair and not cheat by creating the same team as theirs and putting it in the same contest.
+    * Limited and fixed game plays/rules offered by the existing platform
     
 ## Solution
-    * Create Trustless and Decentalized fanstasy sports platform using blockchain and zero knowledge proof system
-    * Enabling complete transparency of the system using public blockchain
-    * User don’t have to submit their team. User keeps its team to themself so that no one can copy the user team and cheat.
-    * Using zkSnarks circuits platform proves the score gather by user’s team.
-    * Provide users to pick from different game plays/rule to create contests. 
-
+    * Create a Trustless and Decentralized fantasy sports platform using blockchain and a zero-knowledge proof system
+    * Enabling complete transparency of the system using a public blockchain
+    * Users don’t have to submit their team. The user keeps their team to themself so that no one can copy the user team and cheat.
+    * Using the zkSnarks circuits platform proves the score gathered by the user’s team.
+    * Let users pick from different game plays/rules to create contests. - NOT DONE
 ## Repository
 
 ## 🛠 Install
