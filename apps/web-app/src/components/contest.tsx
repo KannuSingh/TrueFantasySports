@@ -43,7 +43,7 @@ import { MyTeam } from "../utils/MyTeam"
 import { calculateMyTeamHash } from "../utils/poseidenUtil"
 import { Contract, Event, utils } from "ethers"
 import { Group } from "@semaphore-protocol/group"
-import { Contest, selectUsersDetails } from "../redux_slices/userSlice"
+import { Contest, joinContest, selectUsersDetails, UserContestPayload } from "../redux_slices/userSlice"
 import { Fixture, SeasonTeam, SquadInfo } from "../models/model"
 import { getSimpleDate } from "../utils/commonUtils"
 import CreateTeam from "./createteam"
@@ -375,6 +375,16 @@ function Contest() {
 
                     _trueFantasySportsV1Contract!.on("MemberAdded", (contestId, memberAddress) => {
                         setParticipants([..._participants, memberAddress.toString().toLowerCase()])
+                        const contestPayload: Contest = {
+                            matchId: _matchId.toString(),
+                            contestId: contestId.toString()
+                        }
+                        const UserContestPayload: UserContestPayload = {
+                            identityString: isPrivacyMode ? _identityString : _accounts[0],
+                            isPrivateUser: isPrivacyMode,
+                            contest: contestPayload
+                        }
+                        dispatch(joinContest(UserContestPayload))
                     })
                 } else {
                     setLog("Error Occured : Unable to get contest details")
