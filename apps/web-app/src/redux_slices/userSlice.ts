@@ -26,14 +26,14 @@ export interface UserPayload {
 export interface UserContestPayload {
     isPrivateUser: boolean
     identityString: string
-    contest: Contest
+    contest?: Contest
 }
 const initialState: User[] = []
 export const usersSlice = createSlice({
     name: "user",
     initialState,
     reducers: {
-        addUser: (state, action: PayloadAction<UserPayload>) => {
+        addUser: (state, action: PayloadAction<UserContestPayload>) => {
             const users = state.filter(
                 (user) =>
                     user.identityString == action.payload.identityString &&
@@ -50,9 +50,11 @@ export const usersSlice = createSlice({
             const userIdentityString = action.payload.identityString
             const contestToJoin = action.payload.contest
             let newState = [...state]
-            state.map((user) => {
+            newState.map((user) => {
                 if (user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser) {
-                    user.contests = [...user.contests, contestToJoin]
+                    let userContests = user.contests
+                    userContests.push(contestToJoin!)
+                    user.contests = userContests
                 }
             })
         },
@@ -60,7 +62,7 @@ export const usersSlice = createSlice({
         addTeamAndTeamHash: (state, action: PayloadAction<UserContestPayload>) => {
             const isPrivateUser = action.payload.isPrivateUser
             const userIdentityString = action.payload.identityString
-            const contestToUpdate = action.payload.contest
+            const contestToUpdate = action.payload.contest!
             state.map((user) => {
                 if (user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser) {
                     user.contests = user.contests.map((contest) => {
@@ -85,7 +87,7 @@ export const usersSlice = createSlice({
         addTeamScore: (state, action: PayloadAction<UserContestPayload>) => {
             const isPrivateUser = action.payload.isPrivateUser
             const userIdentityString = action.payload.identityString
-            const contestToUpdate = action.payload.contest
+            const contestToUpdate = action.payload.contest!
             state.map((user) => {
                 if (user.identityString == userIdentityString && user.isPrivateUser == isPrivateUser) {
                     user.contests = user.contests.map((contest) => {

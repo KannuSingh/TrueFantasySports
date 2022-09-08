@@ -104,7 +104,13 @@ function Header() {
             })
 
             dispatch(accountsChanged(accounts))
+
             dispatch(setMetaMaskConnected(true))
+            const userPayload: UserPayload = {
+                isPrivateUser: _isPrivacyMode,
+                identityString: accounts[0]
+            }
+            dispatch(addUser(userPayload))
         }
     }
 

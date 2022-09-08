@@ -652,6 +652,8 @@ function Contest() {
     }
     console.log("HasCurrentUserSubmittedTeam : ", hasCurrentUserSubmittedTeam())
     console.log("isContestPrizeClaimed : ", _isContestPrizeClaimed)
+    console.log("Participants : " + _participants)
+    console.log("IsCurrentUserAParticipant: ", isCurrentUserAParticipant())
     return (
         <VStack spacing={2}>
             {fixture.status == "Finished" ? (

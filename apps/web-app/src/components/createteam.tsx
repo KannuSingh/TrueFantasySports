@@ -167,6 +167,7 @@ function CreateTeam(props: {
                     identityString: isPrivacyMode ? _identityString : _accounts[0],
                     contest: contestState
                 }
+                console.log(userContest)
                 dispatch(addTeamAndTeamHash(userContest))
                 props.onClose()
             } else {
