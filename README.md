@@ -52,8 +52,6 @@ cp .env.example .env
 
 and add your environment variables.
 
-ℹ️ You can use the default ones to start the app in a local network.
-
 ### Start the app
 
 Run the following commands sequentially in three separate tabs of the terminal:
