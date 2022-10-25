@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react"
 import {
     Box,
-    Link,
     Button,
     Select,
     FormLabel,
@@ -10,7 +9,6 @@ import {
     VStack,
     FormHelperText,
     FormErrorMessage,
-    Input,
     Text,
     HStack,
     Spinner,
@@ -88,7 +86,7 @@ function Main() {
                                 Add TFS Token to your wallet
                             </FormLabel>
                             <FormLabel as="i" fontSize="xs">
-                                Address : 0xc8D3Ed24df5D53B5586f22eBF02BC3F8Bd9E7Fa8
+                                Address : {process.env.TFS_TOKEN_CONTRACT_ADDRESS}
                             </FormLabel>
 
                             {!_metamaskConnected ? (

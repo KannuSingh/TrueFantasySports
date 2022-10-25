@@ -4,36 +4,31 @@ import {
     Avatar,
     Box,
     Button,
+    Center,
     Flex,
-    FormControl,
-    FormLabel,
     Heading,
     HStack,
     Icon,
-    Input,
-    Modal,
-    ModalBody,
-    ModalCloseButton,
-    ModalContent,
-    ModalFooter,
-    ModalHeader,
-    ModalOverlay,
+    Popover,
+    PopoverArrow,
+    PopoverBody,
+    PopoverContent,
+    PopoverFooter,
+    PopoverHeader,
+    PopoverTrigger,
+    Portal,
     Select,
-    Switch,
     Text,
-    useDisclosure,
-    VStack
+    useBoolean,
+    VStack,
 } from "@chakra-ui/react"
-import { MdCircle } from "react-icons/md"
 import { ColorModeSwitcher } from "../ColorModeSwitcher"
 import { accountsChanged, requestAccounts, selectAccounts } from "../redux_slices/accountSlice"
 import { hexlify } from "ethers/lib/utils"
 import { useSelector, useDispatch } from "react-redux"
 import { useEffect, useState } from "react"
 import { useAppDispatch, useAppSelector } from "../app/hooks"
-import { selectCurrentIdentity, setCurrentIdentity } from "../redux_slices/identitySlice"
 import { selectPrivacyMode, setPrivacyMode } from "../redux_slices/transactionPrivacySlice"
-import { Identity } from "@semaphore-protocol/identity"
 import { addUser, UserPayload } from "../redux_slices/userSlice"
 import {
     selectMetaMaskConnected,
@@ -41,20 +36,18 @@ import {
     setMetaMaskInstalled,
     setMetaMaskConnected
 } from "../redux_slices/metamaskSlice"
+import {PassportReader} from "@gitcoinco/passport-sdk-reader"
+import AlertDialogNotification from "./alertDialogNotification"
+import { FaChevronDown, FaChevronRight, FaChevronUp, FaCopy, FaPowerOff } from "react-icons/fa"
 
 function Header() {
     const _metaMaskInstalled = useSelector(selectMetaMaskInstalled)
     const _metaMaskConnected = useSelector(selectMetaMaskConnected)
-
-    const _identityString = useSelector(selectCurrentIdentity)
-    const [_isUserLoggedIn, setUserLoggedIn] = useState(false)
-    const { isOpen, onOpen, onClose } = useDisclosure()
-    const [_password, setPassword] = useState("")
-    const [_sudoName, setSudoName] = useState("")
-    const [_name, setName] = useState("")
     const [_chainId, setChainId] = useState("")
     const _isPrivacyMode = useSelector(selectPrivacyMode)
+    const [isAccountDetailOpen, setIsAccountDetailOpen] = useBoolean()
     const _accounts: string[] = useSelector(selectAccounts)
+   
     const dispatch = useAppDispatch()
 
     useEffect(() => {
@@ -68,18 +61,14 @@ function Header() {
                 if (_accounts.length > 0) {
                     setMetaMaskConnected(true)
                 }
-                if (_identityString != "") {
-                    setUserLoggedIn(true)
-                }
+               
                 ethereum.on("accountsChanged", (newAccounts: string[]) => {
                     if (newAccounts.length !== 0 && _accounts[0] != newAccounts[0]) {
                         console.log("User changed account in their metamask wallet")
-                        window.alert("Account changed detected, Changing account in application")
+                       
                         dispatch(accountsChanged(newAccounts))
-                        if (_isPrivacyMode) {
-                            //setUserLoggedIn(false)
-                            handleLogin()
-                        }
+                       // window.alert("Account changed detected, Changing account in application")
+                       
                     }
                 })
             }
@@ -87,30 +76,66 @@ function Header() {
         })()
     }, [])
 
+    const handleChainSwitch =async (selectedChainId) =>{
+        const ethereum = (await detectEthereumProvider()) as any
+        if (selectedChainId) {
+            try{
+                await ethereum.request({
+                    method: "wallet_switchEthereumChain",
+                    params: [
+                        {
+                            chainId: hexlify(Number(selectedChainId!)).replace("0x0", "0x")
+                        }
+                    ]
+                })
+                setChainId(selectedChainId);
+
+            }
+            catch(e){
+
+                console.log(e)
+            }
+            
+    }}
+
+
     const handleConnect = async () => {
         console.log("handleMetaMaskConnect : " + _chainId)
-        const ethereum = (await detectEthereumProvider()) as any
-        if (_chainId) {
-            await ethereum.request({
-                method: "wallet_switchEthereumChain",
-                params: [
-                    {
-                        chainId: hexlify(Number(_chainId!)).replace("0x0", "0x")
-                    }
-                ]
-            })
-            var accounts: string[] = await ethereum.request({
-                method: "eth_requestAccounts"
-            })
+        try{
+            const ethereum = (await detectEthereumProvider()) as any
+            if (_chainId) {
+                await ethereum.request({
+                    method: "wallet_switchEthereumChain",
+                    params: [
+                        {
+                            chainId: hexlify(Number(_chainId!)).replace("0x0", "0x")
+                        }
+                    ]
+                })
+                var accounts: string[] = await ethereum.request({
+                    method: "eth_requestAccounts"
+                })
 
-            dispatch(accountsChanged(accounts))
+                const reader = new PassportReader("https://ceramic.passport-iam.gitcoin.co", "1");
 
-            dispatch(setMetaMaskConnected(true))
-            const userPayload: UserPayload = {
-                isPrivateUser: _isPrivacyMode,
-                identityString: accounts[0]
+                // read a Passport for any Ethereum Address
+                const passport = await reader.getPassport(accounts[0]);
+               
+                console.log("Account :"+accounts[0] )
+                console.log("Passport Details: "+JSON.stringify(passport))
+               
+                dispatch(accountsChanged(accounts))
+                dispatch(setMetaMaskConnected(true))
+               
+                const userPayload: UserPayload = {
+                    isPrivateUser: _isPrivacyMode,
+                    identityString: accounts[0]
+                }
+                dispatch(addUser(userPayload))
             }
-            dispatch(addUser(userPayload))
+        }catch(e){
+            console.log(e)
+            console.log(`You need to switch to ${_chainId} chain id and connect you account`)
         }
     }
 
@@ -119,136 +144,103 @@ function Header() {
         console.log("handleCInstall")
         //dispatch(requestAccounts(ethereum));
     }
-    const handleLogin = async () => {
-        console.log("handleLogin")
-        if (!_metaMaskConnected) {
-            await handleConnect()
-            onOpen()
-        } else {
-            onOpen()
-        }
-        // const ethereum = await detectEthereumProvider()
-
-        //dispatch(requestAccounts(ethereum));
-    }
-    const handleIdentityCreation = async () => {
-        if (_accounts.length > 0) {
-            console.log("handleIdentityCreation : " + _chainId)
-            const ethereum = (await detectEthereumProvider()) as any
-            var signature: string = await ethereum.request({
-                method: "personal_sign",
-                params: [_password, _accounts[0]]
-            })
-            console.log("Signature : " + signature)
-
-            const identity = new Identity(signature)
-
-            //const identityString: string = "{'name':'" + _sudoName + "','value':'" + identity.toString() + "'}"
-            const userPayload: UserPayload = {
-                isPrivateUser: _isPrivacyMode,
-                identityString: identity.toString()
-            }
-            dispatch(addUser(userPayload))
-            dispatch(setCurrentIdentity(identity.toString()))
-            setName(_sudoName)
-            setUserLoggedIn(true)
-            setSudoName("")
-            setPassword("")
-            onClose()
-        } else {
-            console.log("First connect Metamask")
-        }
-    }
-    const handlePrivacyModeToggle = () => {
-        if (!_isPrivacyMode) {
-            handleLogin()
-        } else {
-            dispatch(setCurrentIdentity(""))
-        }
-        dispatch(setPrivacyMode(!_isPrivacyMode))
-    }
 
     return (
-        <Flex justify="space-between" align="center" p={5}>
-            <HStack w="40%" alignSelf="center" spacing="2">
-                <VStack>
-                    <Heading as="h1">True Fantasy Sport</Heading>
-                    {_metaMaskConnected && _accounts[0] ? (
-                        <HStack>
-                            <Icon as={MdCircle} color="green" />
-                            <Text fontSize="xs">Account: {_accounts[0].toString().substring(0, 15)}...</Text>
-                        </HStack>
-                    ) : (
-                        <></>
-                    )}
-                </VStack>
+        <Flex align="center" p={2}>
+           
+            <HStack w="40%" spacing="2">
+                    <Heading as="h1" size='lg'>True Fantasy Sport</Heading>
             </HStack>
-            <HStack w="60%" alignSelf="center" spacing="2">
-                <FormControl display="flex" justifyContent="end" alignItems="center">
-                    <FormLabel htmlFor="transaction-privacy" mb="0">
-                        {_isPrivacyMode ? "Privacy" : "Public"}
-                    </FormLabel>
-                    <Switch isChecked={_isPrivacyMode} onChange={handlePrivacyModeToggle} id="transaction-privacy" />
-                </FormControl>
+            <HStack w="60%"  justify='end' spacing="2">
                 <Select
                     value={_chainId}
                     onChange={(e) => {
-                        setChainId(e.target.value)
+                        handleChainSwitch(e.target.value);
                     }}
-                    w="30%"
+                    w="25%"
                 >
-                    <option value="4">Rinkbey testnet</option>
+                    <option value="280" selected>ZkSync Alpha Testnet</option>
                 </Select>
-                {_chainId != "" ? <Text fontSize="xs">Chain: {_chainId}</Text> : <></>}
+
                 {_metaMaskInstalled ? (
-                    <HStack>
-                        {_metaMaskConnected ? <></> : <Button onClick={handleConnect}>Connect Metamask</Button>}
-                    </HStack>
+                    <>
+                        {_metaMaskConnected && _accounts[0] ? (
+                        <Popover
+                            isOpen={isAccountDetailOpen}
+                            onOpen={setIsAccountDetailOpen.on}
+                            onClose={setIsAccountDetailOpen.off}
+                            placement='bottom-end'
+                        >
+                            <PopoverTrigger>
+                                <Button 
+                                    leftIcon={<Avatar size='sm'/>} 
+                                    rightIcon={isAccountDetailOpen ? <Icon w={3} h={3} as={FaChevronUp} /> : <Icon w={3} h={3} as={FaChevronDown} /> } 
+                                    >
+                                       {_accounts[0].toString().substring(0, 6)+'...'+_accounts[0].toString().substring(38)}
+                                </Button>
+                           
+                            </PopoverTrigger>
+                            <Portal>
+                                <PopoverContent>
+                                <PopoverArrow />
+                                <PopoverHeader
+                                    borderBottomWidth='0px'
+                                >
+                                    <HStack justify='space-between'>
+                                        <HStack>
+                                            <Avatar size='sm'/> 
+                                            <Text> 
+                                                {_accounts[0].toString().substring(0, 6)+'...'+_accounts[0].toString().substring(38)}
+                                            </Text>
+                                        </HStack>
+                                        <HStack spacing='1'>
+                                            <Button size='sm'><Icon w={3} h={3} as={FaCopy} /></Button>
+                                            
+                                            <Button colorScheme='red' size='sm'><Icon w={3} h={3} as={FaPowerOff} /></Button>
+                                           
+                                        </HStack>
+                                    </HStack>
+                                </PopoverHeader>
+                                <PopoverBody>
+                                    <Center>
+                                        <VStack spacing='1'>
+                                            <Text fontSize='2xl'>23450</Text>
+                                            <Text fontSize='3xl'>TFS</Text>
+                                        </VStack>
+                                    </Center>
+                                </PopoverBody>
+                                <PopoverFooter>
+                                    <VStack align='start'>
+                                        <HStack  w='100%' justify='space-between'>
+                                            <Text>My Contests</Text>
+                                            <Icon w={3} h={3} as={FaChevronRight} />
+                                        </HStack>
+                                        <HStack  w='100%' justify='space-between'>
+                                            <Text>History</Text>
+                                            <Icon w={3} h={3} as={FaChevronRight} />
+                                        </HStack>
+                                        <HStack  w='100%' justify='space-between'>
+                                            <Text>Settings</Text>
+                                            <Icon w={3} h={3} as={FaChevronRight} />
+                                        </HStack>
+                                    </VStack>
+
+                                </PopoverFooter>
+                                </PopoverContent>
+                            </Portal>
+                        </Popover>
+                        ) : (
+                        <Button onClick={handleConnect} > Connect Metamask</Button>
+                        )}
+                    </>
                 ) : (
                     <Button onClick={handleInstall}>Install MetaMask</Button>
                 )}
-                {_isPrivacyMode && _identityString != "" ? (
-                    <Avatar size="md" name={_name} />
-                ) : _isPrivacyMode && _identityString == "" ? (
-                    <Button colorScheme="green" onClick={handleLogin}>
-                        Login
-                    </Button>
-                ) : (
-                    <></>
-                )}
-                // Modal for Login ( Login Form)
-                <Modal isOpen={isOpen} onClose={onClose}>
-                    <ModalOverlay />
-                    <ModalContent>
-                        <ModalHeader>Login</ModalHeader>
-                        <ModalCloseButton />
-                        <ModalBody>
-                            <VStack>
-                                <Input
-                                    htmlSize={25}
-                                    width="auto"
-                                    placeholder="Enter sudo name "
-                                    value={_sudoName}
-                                    onChange={(e) => setSudoName(e.target.value)}
-                                />
-                                <Input
-                                    htmlSize={25}
-                                    width="auto"
-                                    placeholder="Enter secret text / password"
-                                    value={_password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                            </VStack>
-                        </ModalBody>
-
-                        <ModalFooter justifyContent="center">
-                            <Button mr={3} colorScheme="blue" onClick={handleIdentityCreation}>
-                                LOGIN
-                            </Button>
-                            <Button onClick={onClose}>Close</Button>
-                        </ModalFooter>
-                    </ModalContent>
-                </Modal>
+                
+                
+               { //Alert Dialog 
+                //  <AlertDialogNotification dialogBody={"Hello Body"} dialogHeader={"Error"} />
+               } 
                 <ColorModeSwitcher alignSelf="center" />
             </HStack>
         </Flex>
