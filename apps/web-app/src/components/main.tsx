@@ -1,25 +1,19 @@
 import React, { useEffect, useState } from "react"
 import {
-    Box,
-    Button,
-    Select,
-    FormLabel,
-    FormControl,
-    Flex,
-    VStack,
-    FormHelperText,
-    FormErrorMessage,
-    Text,
-    HStack,
-    Spinner,
-    Heading
-} from "@chakra-ui/react"
-import { Link as RouterLink, useNavigate } from "react-router-dom"
+  Box,
+  useColorModeValue,
+  Drawer,
+  DrawerContent,
+  useDisclosure,
+} from '@chakra-ui/react';
+import { NavLink as RouterLink, Outlet, useNavigate } from "react-router-dom"
 import { Contract } from "ethers"
 import detectEthereumProvider from "@metamask/detect-provider"
 import { getTFSTokenContract } from "../walletUtils/MetaMaskUtils"
 import { selectMetaMaskConnected } from "../redux_slices/metamaskSlice"
 import { useSelector } from "react-redux"
+import SidebarContent from "./SidebarContent";
+import Header from "./header";
 
 function Main() {
     const _metamaskConnected = useSelector(selectMetaMaskConnected)
@@ -68,76 +62,38 @@ function Main() {
     }
 
     const isError = _sportId === ""
+
+    const { isOpen, onOpen, onClose } = useDisclosure();
     return (
-        <Flex align="center" justify="center">
-            {/** <Link as={RouterLink} to="/identity">
-                <Button variant="outline">Create Identity</Button>
-    </Link> */}
-            <VStack w="100%" spacing={3} p={4}>
-                <Box maxW="sm" borderWidth="1px" borderRadius="lg" overflow="hidden">
-                    <VStack w="100%" spacing={3} p={4}>
-                        <Box borderBottom="1px">
-                            <Heading as="h4" size="md">
-                                Mint True Fantasy Sports Token
-                            </Heading>
-                        </Box>
-                        <FormControl p={2} isInvalid={_metamaskConnected && _mintFormSubmitted}>
-                            <FormLabel as="i" fontSize="xs">
-                                Add TFS Token to your wallet
-                            </FormLabel>
-                            <FormLabel as="i" fontSize="xs">
-                                Address : {process.env.TFS_TOKEN_CONTRACT_ADDRESS}
-                            </FormLabel>
+        <Box minH="100vh" bg={useColorModeValue('gray.100', 'gray.850')}>
+        <SidebarContent
+          onClose={() => onClose}
+          display={{ base: 'none', md: 'block' }}
+        />
+        <Drawer
+        id='drawer'
+          autoFocus={false}
+          isOpen={isOpen}
+          placement="left"
+          onClose={onClose}
+          returnFocusOnClose={false}
+          onOverlayClick={onClose}
+          size="full">
+          <DrawerContent>
+            <SidebarContent onClose={onClose} />
+          </DrawerContent>
+        </Drawer>
+        {/* mobilenav */}
+        <Header onOpen={onOpen} />
+        <Box 
+            ml={{ base: 0, md: 48 }}
+            mt={{ base: 0, md: 20 }}
+            p="4">
+          <Outlet/>
+        </Box>
+      </Box>
 
-                            {!_metamaskConnected ? (
-                                <FormHelperText>Connect MetaMask Wallet</FormHelperText>
-                            ) : (
-                                <>
-                                    {_mintError ? (
-                                        <FormErrorMessage>Can't mint token more than once in 24hrs.</FormErrorMessage>
-                                    ) : (
-                                        <></>
-                                    )}
-                                </>
-                            )}
-
-                            <Button variant="solid" bg="green.500" onClick={handleTokenMint}>
-                                {" "}
-                                Mint 10 Token
-                            </Button>
-                        </FormControl>
-                    </VStack>
-                    <HStack>
-                        {_log != "" ? (
-                            <>
-                                <Spinner size="md" /> <Text fontSize="xs">{_log}</Text>
-                            </>
-                        ) : (
-                            <></>
-                        )}
-                    </HStack>
-                </Box>
-                <VStack w="40%" spacing={3} p={4}>
-                    <FormControl isInvalid={isError && _formSubmitted}>
-                        <FormLabel>Sports</FormLabel>
-                        <Select
-                            value={_sportId}
-                            onChange={(e) => {
-                                setSportId(e.target.value)
-                            }}
-                            placeholder="Select Sport"
-                        >
-                            <option value="1">Cricket</option>
-                        </Select>
-                        {!isError ? <></> : <FormErrorMessage>Select a sport to continue.</FormErrorMessage>}
-                    </FormControl>
-                    <Button variant="outline" onClick={handleSelectSports}>
-                        {" "}
-                        Submit
-                    </Button>
-                </VStack>
-            </VStack>
-        </Flex>
+        
     )
 }
 

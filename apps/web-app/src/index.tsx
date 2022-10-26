@@ -1,11 +1,10 @@
 import React from "react"
-import { Box, ChakraProvider, ColorModeScript, theme } from "@chakra-ui/react"
+import {  ChakraProvider, ColorModeScript, theme } from "@chakra-ui/react"
 import "@fontsource/inter/400.css"
 import { persistStore } from "redux-persist"
 import { PersistGate } from "redux-persist/integration/react"
 import { createRoot } from "react-dom/client"
 import { HashRouter, Route, Routes } from "react-router-dom"
-import Header from "./components/header"
 import Main from "./components/main"
 import Match from "./components/match"
 import store from "./app/store"
@@ -18,17 +17,14 @@ function App() {
     return (
         <>
             <HashRouter>
-                <Box minH="100vh" p={3} fontSize="xl">
-                    <Header />
-                    <hr />
                     <Routes>
-                        <Route path="/" element={<Main />} />
-                        <Route path="/cricket" element={<Cricket />}>
-                            <Route path="/cricket/leagues/:leagueId/fixtures" element={<Fixtures />} />
-                            <Route path="/cricket/fixtures/:fixtureId" element={<Match />} />
-                            <Route path="/cricket/fixtures/:fixtureId/contests/:contestId" element={<Contest />} />
+                        <Route path="/" element={<Main />} >
+                            <Route path="/cricket" element={<Cricket />}>
+                                <Route path="/cricket/leagues/:leagueId/fixtures" element={<Fixtures />} />
+                                <Route path="/cricket/fixtures/:fixtureId" element={<Match />} />
+                                <Route path="/cricket/fixtures/:fixtureId/contests/:contestId" element={<Contest />} />
+                            </Route>
                         </Route>
-
                         <Route
                             path="*"
                             element={
@@ -38,7 +34,6 @@ function App() {
                             }
                         />
                     </Routes>
-                </Box>
             </HashRouter>
         </>
     )
