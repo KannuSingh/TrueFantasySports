@@ -169,7 +169,7 @@ function Match() {
                         </Text>
 
                         <Text fontSize="sm">
-                            Venue : {_fixture!.venue.name}, {_fixture!.venue.city}{" "}
+                            Venue : {_fixture!.venue ?_fixture!.venue!.name+', '+ _fixture!.venue.city:''}{" "}
                         </Text>
 
                         <Divider orientation="horizontal" />

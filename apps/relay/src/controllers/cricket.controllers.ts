@@ -79,6 +79,31 @@ const fixtureByLeagueIdAndSeasonId = async (_req: Request, _res: Response) => {
         _res.status(500).end()
     }
 }
+const fixtures = async (_req: Request, _res: Response) => {
+    try {
+        var requestOptions = {
+            method: "GET"
+        }
+        console.log(`Request : Get All fixtures `)
+        let response = await axios(
+            authUrl(
+                `${cricketAPI}/fixtures?filter[status]=NS&include=venue,localteam,visitorteam&sort=starting_at&page=1&`
+            ),
+            requestOptions
+        )
+
+        if (response.status == 200) {
+            _res.status(200).json(response.data).end()
+        } else {
+            _res.status(response.status).end("Some error occured.")
+        }
+    } catch (error: any) {
+        console.error(error)
+
+        _res.status(500).end()
+    }
+}
+
 const fixtureByLeagueId = async (_req: Request, _res: Response) => {
     try {
         var requestOptions = {
@@ -161,6 +186,7 @@ const getSquadByTeamIdAndSeasonId = async (_req: Request, _res: Response) => {
 export = {
     allLeagues,
     leagueById,
+    fixtures,
     fixtureByLeagueIdAndSeasonId,
     fixtureByLeagueId,
     fixtureById,

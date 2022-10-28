@@ -3,18 +3,18 @@ import {
     Box,
     Text,
     VStack,
-    Heading,
     Flex,
     HStack,
-    Thead,
-    Table,
-    Tr,
-    Th,
-    Tbody,
-    Td,
     Button,
-    Divider,
-    TableContainer
+    Image,
+    List,
+    ListItem,
+    Stack,
+    useColorModeValue,
+    Menu,
+    MenuButton,
+    MenuList,
+    MenuItem
 } from "@chakra-ui/react"
 import {
     getNextWeekEndDate,
@@ -26,35 +26,70 @@ import {
     getWeekStartDate
 } from "../../utils/commonUtils"
 import { useNavigate } from "react-router-dom"
-import { Fixture } from "../../Model/model"
+import { Fixture, League } from "../../models/model"
 import { useParams } from "react-router-dom"
+import { FaChevronDown } from "react-icons/fa"
 
-function Fixtures() {
+
+interface FixturesProps{
+    leagues: League[];
+    onFixtureSelection(fixtureId:number) : void
+}
+
+function Fixtures({leagues, onFixtureSelection}:FixturesProps) {
     let params = useParams()
     const [_fixtures, setFixtures] = useState<Fixture[]>([])
     const [_startDate, setStartDate] = useState<Date>()
     const [_endDate, setEndDate] = useState<Date>()
-    const [_leagueId, setLeagueId] = useState<number>(parseInt(params.leagueId!, 10))
+    const [_leagueName, setLeagueName] = useState('All')
+    const [_leagueId, setLeagueId] = useState(-1)//parseInt(params.leagueId!, 10)
     const navigate = useNavigate()
 
     useEffect(() => {
         ;(async () => {
             setStartDate(getWeekStartDate())
             setEndDate(getWeekEndDate())
+            
         })()
     }, [])
 
     useEffect(() => {
         ;(async () => {
-            if (_leagueId && _startDate! && _endDate!) {
+            if (_leagueId!=-1 && _startDate! && _endDate!) {
                 console.log("Calling")
-                const startDate: string = getSimpleDate(_startDate!)
-                const endDate: string = getSimpleDate(_endDate!)
-                const fixtures: Fixture[] | undefined = await getAllFixtureForLeague(_leagueId, startDate, endDate)
+                
+                
+            }else{
+                const fixtures: Fixture[] | undefined = await getAllFixtures()
+                console.log(JSON.stringify(fixtures))
                 setFixtures(fixtures!)
             }
         })()
-    }, [_startDate, _endDate])
+    }, [_startDate, _endDate,_leagueId])
+
+    const getAllFixtures =  useCallback(async () => {
+            try {
+                const response = await fetch(`${process.env.RELAY_URL}/api/cricket/allfixtures`, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                })
+                if (response.status === 200) {
+                    const responseJson = await response.json()
+                    const fixturesResponse: Fixture[] = responseJson.data
+                    return fixturesResponse
+                } else {
+                    console.log("Some error occurred, while getting all fixtures!")
+                    return []
+                }
+            } catch (e) {
+                console.log(e)
+            }
+        },
+        [_startDate, _endDate,_leagueId]
+    )
+        
+    
+    
 
     const getAllFixtureForLeague = useCallback(
         async (leagueId: number, startDate: string, endDate: string) => {
@@ -81,7 +116,7 @@ function Fixtures() {
                 console.log(e)
             }
         },
-        [_startDate, _endDate]
+        [_startDate, _endDate,_leagueId]
     )
 
     const handleCurrentWeek = () => {
@@ -102,60 +137,60 @@ function Fixtures() {
         setStartDate(nextWeekStartDate)
         setEndDate(nextWeekEndDate)
     }
-
-    const handleFixtureSelection = (
-        fixtureId: number,
-        seasonId: number,
-        localTeamId: number,
-        visitorTeamId: number
-    ) => {
-        console.log(
-            `Selected Fixture : ${fixtureId} ,Season : ${seasonId} , Local Team : ${localTeamId} , Visitor Team ID : ${visitorTeamId}`
-        )
-
-        navigate(`/cricket/fixtures/${fixtureId}`)
+    const handleLeagueSelection = async(leagueId,leagueName) =>{
+        setLeagueId(leagueId)
+        setLeagueName(leagueName)
+        const startDate: string = getSimpleDate(_startDate!)
+        const endDate: string = getSimpleDate(_endDate!)
+        const fixtures: Fixture[] | undefined = await getAllFixtureForLeague(_leagueId, startDate, endDate)
+        setFixtures(fixtures!)
     }
+   
 
     return (
-        <VStack spacing={5}>
-            {/* <Box w="90%">
-           <Heading as="h5" size="lg">
-              Seasons
-          </Heading>
-
-          _seasons && _seasons.length > 0 ? (
-              <Flex wrap="wrap" gap="3">
-                  {_seasons.map((season) => (
-                      <Tag
-                          size="lg"
-                          key={season.id}
-                          _hover={{
-                              cursor: "pointer",
-                              fontWeight: "bold"
-                          }}
-                          onClick={() => handleSeasonClick(season.id, season.league_id)}
-                          variant="solid"
-                          colorScheme="teal"
-                      >
-                          {season.name}
-                      </Tag>
-                  ))}
-              </Flex>
-          ) : (
-              <></>
-          ) 
-      </Box>*/}
-            <Box w="90%">
+        
+            
+            <Box w="full">
                 {_startDate && _endDate && _leagueId ? (
                     <VStack>
-                        <VStack spacing={3}>
-                            <Heading as="h5" size="lg">
-                                Fixtures
-                            </Heading>
-                            <Divider orientation="horizontal" />
-                        </VStack>
+                        <HStack w="full" justify='space-between'>
+                            <Text>Upcoming Matches</Text>
+                            <HStack>
+                                <Text>Filters :</Text>
+                                
+                                {leagues && leagues.length > 0 ? (
+                                <>
+                                    <Menu >
+                                        <MenuButton as={Button} size='sm' variant='outline' rightIcon={<FaChevronDown />}>{_leagueName}</MenuButton>
+                                            <MenuList>
+                                                <MenuItem key='-1' onClick={()=> {
+                                                    setLeagueId(-1)
+                                                    setLeagueName('All')
+                                                    }}>All Leagues
+                                                </MenuItem>
 
+                                            {leagues.map((league, index) => 
+                                                <MenuItem key={league.id} onClick={() => {
+                                                        handleLeagueSelection(league.id,league.name)
+                                                    }} icon={<ImageIcon url={league.image_path}/>}>
+                                                    {league.name} 
+                                                </MenuItem>
+                                            )}
+                                            </MenuList>
+                                    </Menu>
+                                </> 
+                                )
+                                : <></>
+                                }
+                                
+                            </HStack>
+                            <Button>View All</Button>
+                        </HStack>
+                        
+                        
                         <Text fontSize="xs">{`${getSimpleDate(_startDate!)} to ${getSimpleDate(_endDate!)}`}</Text>
+                        
+                        
                         <Flex w="100%" justifyContent="space-between">
                             <Button onClick={handleCurrentWeek}>Current Week</Button>
 
@@ -164,57 +199,84 @@ function Fixtures() {
                                 <Button onClick={handleNextWeek}>Next Week</Button>
                             </HStack>
                         </Flex>
-                        <TableContainer w="100%">
-                            <Table size="sm" variant="striped" colorScheme="blue">
-                                <Thead>
-                                    <Tr>
-                                        <Th>#</Th>
-                                        <Th>Home</Th>
-
-                                        <Th>Visitor</Th>
-                                        <Th>Date</Th>
-                                    </Tr>
-                                </Thead>
-                                {_fixtures && _fixtures.length > 0 ? (
-                                    <Tbody>
-                                        {_fixtures.map((fixture, index) => (
-                                            <Tr
-                                                key={index}
-                                                _hover={{
-                                                    cursor: "pointer",
-                                                    fontWeight: "semibold"
-                                                }}
-                                                onClick={() =>
-                                                    handleFixtureSelection(
-                                                        fixture.id,
-                                                        fixture.season_id,
-                                                        fixture.localteam_id,
-                                                        fixture.visitorteam_id
-                                                    )
-                                                }
+                       
+                        {_fixtures && _fixtures.length > 0 ? (
+                            <List w='full' spacing='3'>
+                                 {_fixtures.map((fixture, index) => (
+                                    <ListItem
+                                        h='20'
+                                        bg={useColorModeValue('white', 'gray.900')} 
+                                        key={fixture.id.toString()}
+                                        border='1px'
+                                        _hover={{
+                                            cursor: "pointer",
+                                            fontWeight: "semibold"
+                                        }}
+                                        onClick={() =>
+                                            onFixtureSelection(
+                                                fixture.id
+                                            )
+                                        }
+                                        >
+                                        <HStack px='3' h='full' alignContent='center' justify='space-between'>
+                                            <Stack
+                                                w='20%'
+                                                direction='column'
+                                                align='center'
+                                                justify='center'
                                             >
-                                                <Td>
-                                                    <Text>{index + 1}</Text>
-                                                </Td>
-                                                <Td>{fixture!.localteam!.name}</Td>
-                                                <Td>{fixture!.visitorteam!.name}</Td>
-                                                <Td>{getSimpleDate(new Date(fixture!.starting_at!))}</Td>
-                                            </Tr>
-                                        ))}
-                                    </Tbody>
-                                ) : (
-                                    <></>
-                                )}
-                            </Table>
-                        </TableContainer>
+                                                <Image w={6} h={6} rounded="full" src={fixture.localteam.image_path} />
+                                                <Text> {fixture!.localteam!.name} </Text>
+                                            </Stack>
+
+                                            <Stack  
+                                                direction='column'
+                                                spacing='0'>
+                                                    
+                                                <Text 
+                                                    align='center'
+                                                    fontSize='2xs'>
+                                                        {getSimpleDate(new Date(fixture!.starting_at!))}
+                                                </Text>
+                                                <Text fontSize='2xs'>{fixture!.venue ?fixture!.venue!.name:''}</Text>
+                                            </Stack>
+
+                                            <Stack
+                                                w='20%'
+                                                direction={{base:'column',md:'column'}}
+                                                align='center'
+                                                justify='center'
+                                            >
+                                                <Image w={6} rounded="full" src={fixture.visitorteam.image_path} />
+                                                <Text>{fixture!.visitorteam!.name} </Text>
+                                            </Stack>
+                                           
+                                        </HStack>
+                                    </ListItem>
+                                ))}
+                            </List>
+                        ): (
+                            <></>
+                        )}
+                       
+
+                       
                     </VStack>
                 ) : (
                     <>
-                        <Text> Select a league to view fixtures</Text>
+                        <Text> No matches</Text>
                     </>
                 )}
             </Box>
-        </VStack>
+     
+    )
+}
+
+function ImageIcon(props: { url: string | undefined }) {
+    return (
+        <>
+            <Image w={6} rounded="full" src={props.url} />
+        </>
     )
 }
 

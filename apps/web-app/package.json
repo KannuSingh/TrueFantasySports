@@ -29,6 +29,7 @@
         "@semaphore-protocol/proof": "2.1.0",
         "@spruceid/didkit-wasm-node": "^0.2.1",
         "assert": "^2.0.0",
+        "eslint-plugin-react-hooks": "^4.6.0",
         "ethers": "^5.7.1",
         "framer-motion": "^7.6.1",
         "os-browserify": "^0.3.0",
